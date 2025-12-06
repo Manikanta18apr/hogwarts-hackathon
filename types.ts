@@ -1,4 +1,4 @@
-export type ViewState = 'home' | 'discover' | 'details' | 'itinerary' | 'map' | 'events' | 'profile';
+export type ViewState = 'onboarding' | 'home' | 'discover' | 'details' | 'itinerary' | 'map' | 'events' | 'profile' | 'planner' | 'budget' | 'alerts';
 
 export interface Place {
   id: string;
@@ -22,6 +22,9 @@ export interface ItineraryItem {
   placeId?: string;
   description?: string;
   mapUrl?: string;
+  image?: string;
+  rating?: number;
+  distance?: string;
 }
 
 export interface EventItem {
