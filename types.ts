@@ -21,6 +21,7 @@ export interface ItineraryItem {
   activity: string;
   placeId?: string;
   description?: string;
+  mapUrl?: string;
 }
 
 export interface EventItem {

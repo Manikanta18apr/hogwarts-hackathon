@@ -75,41 +75,47 @@ export const generateAIItinerary = async (
     return mockItinerary(location);
   }
 
-  const prompt = `Generate a detailed 1-day travel itinerary for ${location}. 
-  The user is interested in: ${interests.join(", ")}.
-  Focus on finding hidden gems and local culture.
-  Return a JSON array of activities separated by 'Morning', 'Afternoon', and 'Evening'.`;
+  const prompt = `Create a 1-day travel itinerary for ${location} based on these interests: ${interests.join(", ")}.
+  Use the Google Maps tool to find real, specific places and events.
+  
+  OUTPUT FORMAT:
+  You must output ONLY a valid JSON array. Do not include markdown formatting like \`\`\`json.
+  Each object in the array must have:
+  - time: string (e.g. "09:00 AM")
+  - period: "Morning", "Afternoon", or "Evening"
+  - activity: string (name of the place or event)
+  - description: string (brief description)
+  - mapUrl: string (The Google Maps URI from the tool, if available. If not, leave empty.)
+  `;
 
   try {
+    // Using tools disables responseSchema, so we must rely on text parsing.
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: prompt,
       config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              time: { type: Type.STRING, description: "Time of activity e.g. 9:00 AM" },
-              period: { type: Type.STRING, enum: ["Morning", "Afternoon", "Evening"] },
-              activity: { type: Type.STRING, description: "Name of the activity or place" },
-              description: { type: Type.STRING, description: "Brief description of what to do there" },
-            },
-            required: ["time", "period", "activity", "description"],
-          },
-        },
+        tools: [{ googleMaps: {} }],
       },
     });
 
-    if (response.text) {
-      const data = JSON.parse(response.text);
+    let jsonString = response.text || "";
+    // Clean up markdown code blocks if the model adds them
+    jsonString = jsonString.replace(/```json/g, "").replace(/```/g, "").trim();
+
+    try {
+      const data = JSON.parse(jsonString);
       return data.map((item: any, index: number) => ({
         id: `gen-${index}`,
         ...item,
+        // Fallback for mapUrl if model didn't provide one but gave a name
+        mapUrl: item.mapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.activity + " " + location)}`
       }));
+    } catch (parseError) {
+      console.error("Failed to parse itinerary JSON:", parseError);
+      console.log("Raw response:", jsonString);
+      return mockItinerary(location);
     }
-    return mockItinerary(location);
+
   } catch (error) {
     console.error("Gemini API Error:", error);
     return mockItinerary(location);

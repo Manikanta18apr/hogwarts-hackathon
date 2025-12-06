@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ItineraryItem } from '../types';
-import { Sparkles, Save, Clock, GripVertical } from 'lucide-react';
+import { Sparkles, Save, Clock, GripVertical, MapPin, ExternalLink } from 'lucide-react';
 import { generateAIItinerary } from '../services/geminiService';
 
 interface ItineraryProps {
@@ -33,7 +33,7 @@ const Itinerary: React.FC<ItineraryProps> = ({ items, setItems }) => {
 
       {/* Generator Control */}
       <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mb-8">
-        <h3 className="font-semibold text-slate-700 mb-3">AI Planner</h3>
+        <h3 className="font-semibold text-slate-700 mb-3">AI Planner with Google Maps</h3>
         <div className="flex gap-2">
             <input 
                 value={location}
@@ -53,7 +53,7 @@ const Itinerary: React.FC<ItineraryProps> = ({ items, setItems }) => {
                 )}
             </button>
         </div>
-        <p className="text-xs text-slate-400 mt-2">Tap stars to auto-generate a plan based on your interests.</p>
+        <p className="text-xs text-slate-400 mt-2">Tap stars to generate a plan with real places from Google Maps.</p>
       </div>
 
       {/* Timeline */}
@@ -84,10 +84,23 @@ const Itinerary: React.FC<ItineraryProps> = ({ items, setItems }) => {
                         <div className="text-slate-300 mt-1 cursor-grab">
                             <GripVertical size={16} />
                         </div>
-                        <div>
-                            <div className="flex items-center text-xs text-teal-600 font-bold mb-1">
-                                <Clock size={12} className="mr-1" />
-                                {item.time}
+                        <div className="flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center text-xs text-teal-600 font-bold">
+                                    <Clock size={12} className="mr-1" />
+                                    {item.time}
+                                </div>
+                                {item.mapUrl && (
+                                    <a 
+                                        href={item.mapUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-teal-500 hover:text-teal-700 p-1"
+                                        title="View on Google Maps"
+                                    >
+                                        <MapPin size={16} />
+                                    </a>
+                                )}
                             </div>
                             <h4 className="font-semibold text-slate-800">{item.activity}</h4>
                             <p className="text-xs text-slate-500 mt-1">{item.description}</p>

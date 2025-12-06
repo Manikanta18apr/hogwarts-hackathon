@@ -1,5 +1,5 @@
 {
-  "name": "Wanderlust AI",
+  "name": "DeshaDarsana",
   "description": "An AI-powered travel explorer helping you discover hidden gems, generate itineraries, and find local events.",
   "requestFramePermissions": [
     "geolocation",
