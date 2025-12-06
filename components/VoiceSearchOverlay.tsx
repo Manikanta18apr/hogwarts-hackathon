@@ -66,7 +66,10 @@ const VoiceSearchOverlay: React.FC<VoiceSearchOverlayProps> = ({ isOpen, onClose
         model: 'gemini-2.5-flash-native-audio-preview-09-2025',
         config: {
           inputAudioTranscription: {}, // Enable transcription for user input audio.
-          responseModalities: [Modality.TEXT], // We only need text output for transcription
+          responseModalities: [Modality.AUDIO], // MUST be AUDIO for this model
+          speechConfig: { // REQUIRED for Modality.AUDIO
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } },
+          },
         },
         callbacks: {
           onopen: () => {
