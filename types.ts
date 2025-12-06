@@ -31,6 +31,8 @@ export interface ItineraryItem {
   image?: string;
   rating?: number;
   distance?: string;
+  travelTime?: string; // New: Time to travel to this spot
+  notes?: string;
 }
 
 export interface EventItem {

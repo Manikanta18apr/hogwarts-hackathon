@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Place } from '../types';
-import { Filter, Star, MapPin, X, Search, Loader, Heart } from 'lucide-react';
+import { Filter, Star, MapPin, X, Search, Loader, Heart, Plus, Check } from 'lucide-react';
 import { discoverPlaces } from '../services/geminiService';
 
 interface DiscoverProps {
@@ -8,6 +8,8 @@ interface DiscoverProps {
   searchTerm?: string;
   onSearch?: (term: string) => void;
   onSavePlace?: (place: Place) => void;
+  tripSelection?: Place[];
+  onToggleTripSelection?: (place: Place) => void;
 }
 
 const mockPlaces: Place[] = [
@@ -65,7 +67,14 @@ const mockPlaces: Place[] = [
   }
 ];
 
-const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onSearch, onSavePlace }) => {
+const Discover: React.FC<DiscoverProps> = ({ 
+  onSelectPlace, 
+  searchTerm = '', 
+  onSearch, 
+  onSavePlace,
+  tripSelection = [],
+  onToggleTripSelection
+}) => {
   const [activeFilter, setActiveFilter] = useState('All');
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
   const [results, setResults] = useState<Place[]>(mockPlaces);
@@ -125,6 +134,11 @@ const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onS
       e.stopPropagation();
       if(onSavePlace) onSavePlace(place);
   };
+
+  const handleToggleTrip = (e: React.MouseEvent, place: Place) => {
+      e.stopPropagation();
+      if(onToggleTripSelection) onToggleTripSelection(place);
+  }
 
   return (
     <div className="pb-24 pt-4 px-4 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
@@ -191,48 +205,60 @@ const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onS
       {!isLoading && (
         <div className="space-y-6">
             {filteredPlaces.length > 0 ? (
-                filteredPlaces.map((place) => (
-                <div 
-                    key={place.id}
-                    onClick={() => onSelectPlace(place)}
-                    className="bg-white dark:bg-slate-900 rounded-3xl shadow-md overflow-hidden cursor-pointer active:scale-95 transition-all border border-slate-100 dark:border-slate-800 relative group"
-                >
-                    <div className="h-48 relative">
-                    <img src={place.image} alt={place.title} className="w-full h-full object-cover" />
-                    <div className="absolute top-4 right-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center shadow-sm">
-                        <Star size={14} className="text-yellow-500 fill-yellow-500 mr-1" />
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{place.rating}</span>
-                    </div>
-                    {/* Quick Save Button Overlay */}
-                    <button 
-                        onClick={(e) => handleSave(e, place)}
-                        className="absolute top-4 left-4 p-2 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/40 transition-colors opacity-0 group-hover:opacity-100"
+                filteredPlaces.map((place) => {
+                  const isSelected = tripSelection.some(p => p.id === place.id);
+                  return (
+                    <div 
+                        key={place.id}
+                        onClick={() => onSelectPlace(place)}
+                        className={`bg-white dark:bg-slate-900 rounded-3xl shadow-md overflow-hidden cursor-pointer active:scale-95 transition-all border relative group ${isSelected ? 'border-teal-500 ring-2 ring-teal-500/20' : 'border-slate-100 dark:border-slate-800'}`}
                     >
-                        <Heart size={18} />
-                    </button>
+                        <div className="h-48 relative">
+                            <img src={place.image} alt={place.title} className="w-full h-full object-cover" />
+                            <div className="absolute top-4 right-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center shadow-sm">
+                                <Star size={14} className="text-yellow-500 fill-yellow-500 mr-1" />
+                                <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{place.rating}</span>
+                            </div>
+                            
+                            {/* Trip Selection Toggle */}
+                            <button 
+                                onClick={(e) => handleToggleTrip(e, place)}
+                                className={`absolute top-4 right-16 p-2 backdrop-blur-md rounded-full text-white transition-colors shadow-sm z-20 ${isSelected ? 'bg-teal-500 hover:bg-teal-600' : 'bg-black/30 hover:bg-black/50'}`}
+                            >
+                                {isSelected ? <Check size={18} /> : <Plus size={18} />}
+                            </button>
+
+                            {/* Quick Save Button Overlay */}
+                            <button 
+                                onClick={(e) => handleSave(e, place)}
+                                className="absolute top-4 left-4 p-2 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/40 transition-colors opacity-0 group-hover:opacity-100"
+                            >
+                                <Heart size={18} />
+                            </button>
+                        </div>
+                        <div className="p-5">
+                            <div className="flex justify-between items-start mb-2">
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">{place.title}</h3>
+                                <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{place.cost}</span>
+                            </div>
+                            <div className="flex items-center text-slate-400 dark:text-slate-500 mb-3 text-sm">
+                                <MapPin size={14} className="mr-1" />
+                                <span>{place.coordinates ? 'Nearby' : 'Location TBD'}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2 mb-3">
+                                {place.tags && place.tags.map(tag => (
+                                <span key={tag} className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs rounded-md">
+                                    {tag}
+                                </span>
+                                ))}
+                            </div>
+                            <button className="w-full py-2 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 font-semibold rounded-xl text-sm hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-colors">
+                                View Details
+                            </button>
+                        </div>
                     </div>
-                    <div className="p-5">
-                    <div className="flex justify-between items-start mb-2">
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">{place.title}</h3>
-                        <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{place.cost}</span>
-                    </div>
-                    <div className="flex items-center text-slate-400 dark:text-slate-500 mb-3 text-sm">
-                        <MapPin size={14} className="mr-1" />
-                        <span>{place.coordinates ? 'Nearby' : 'Location TBD'}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                        {place.tags && place.tags.map(tag => (
-                        <span key={tag} className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs rounded-md">
-                            {tag}
-                        </span>
-                        ))}
-                    </div>
-                    <button className="w-full py-2 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 font-semibold rounded-xl text-sm hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-colors">
-                        View Details
-                    </button>
-                    </div>
-                </div>
-                ))
+                  );
+                })
             ) : (
                 <div className="text-center py-10">
                     <div className="bg-slate-100 dark:bg-slate-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400 dark:text-slate-500">
@@ -252,6 +278,15 @@ const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onS
                 </div>
             )}
         </div>
+      )}
+      
+      {/* Floating Selection Indicator */}
+      {tripSelection.length > 0 && (
+          <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-slate-900 dark:bg-indigo-600 text-white px-6 py-3 rounded-full shadow-xl z-50 flex items-center gap-3 animate-slide-up">
+              <span className="font-bold">{tripSelection.length} selected</span>
+              <div className="h-4 w-[1px] bg-white/30"></div>
+              <span className="text-sm">Go to map icon to route</span>
+          </div>
       )}
     </div>
   );

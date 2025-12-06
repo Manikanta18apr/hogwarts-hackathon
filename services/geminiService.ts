@@ -65,6 +65,64 @@ export const analyzeImage = async (base64Data: string, mimeType: string): Promis
   }
 };
 
+export const optimizeRoute = async (places: Place[]): Promise<ItineraryItem[]> => {
+  if (!hasKey || places.length === 0) return [];
+
+  const placeNames = places.map(p => p.title).join(", ");
+  
+  const prompt = `I have a list of places to visit: ${placeNames}.
+  Please optimize the route to visit these places in the most logical geographic order starting at 9:00 AM.
+  Use the Google Maps tool to calculate real travel times between them.
+  
+  OUTPUT FORMAT:
+  Return a raw JSON array (no markdown) where each object represents a stop:
+  - time: estimated arrival time (e.g. "09:00 AM")
+  - activity: exact name of the place
+  - travelTime: string description of travel from previous spot (e.g. "15 min drive") or "Start" for the first one.
+  - description: A very short 1-sentence reason why this stop fits here.
+  - mapUrl: The Google Maps URI from the tool.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        tools: [{ googleMaps: {} }],
+      },
+    });
+
+    let jsonString = response.text || "";
+    jsonString = jsonString.replace(/```json/g, "").replace(/```/g, "").trim();
+
+    try {
+      const parsed = JSON.parse(jsonString);
+      // Merge AI data with our original place data (images, etc)
+      return parsed.map((item: any, index: number) => {
+        const originalPlace = places.find(p => p.title.includes(item.activity) || item.activity.includes(p.title));
+        return {
+          id: `opt-${index}`,
+          time: item.time,
+          period: parseInt(item.time) >= 12 && parseInt(item.time) < 17 ? 'Afternoon' : parseInt(item.time) >= 17 ? 'Evening' : 'Morning',
+          activity: item.activity,
+          description: item.description,
+          travelTime: item.travelTime,
+          mapUrl: item.mapUrl,
+          image: originalPlace?.image,
+          placeId: originalPlace?.id,
+          rating: originalPlace?.rating
+        };
+      });
+    } catch (e) {
+      console.error("JSON Parse Error during optimization", e);
+      return [];
+    }
+  } catch (error) {
+    console.error("Route Optimization Error:", error);
+    return [];
+  }
+};
+
 export const generateAIItinerary = async (
   location: string,
   interests: string[],
@@ -125,11 +183,9 @@ export const generateAIItinerary = async (
 export const discoverPlaces = async (
   query: string
 ): Promise<Place[]> => {
-    // If no API key or empty query, return empty array to let component handle fallback/mock
     if (!query) return [];
 
     if (!hasKey) {
-        // Simple mock fallback if no key
         return [
             {
                 id: 'mock-1',
@@ -195,7 +251,6 @@ export const discoverPlaces = async (
 
      if (response.text) {
       const data = JSON.parse(response.text);
-      // Map and add random images since text API doesn't return images
       return data.map((item: any, index: number) => ({
           ...item,
           id: `ai-${Date.now()}-${index}`,

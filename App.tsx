@@ -23,6 +23,10 @@ const App: React.FC = () => {
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [itineraryItems, setItineraryItems] = useState<ItineraryItem[]>([]);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
+  
+  // New state for Route Optimizer
+  const [tripSelection, setTripSelection] = useState<Place[]>([]);
+
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -75,18 +79,21 @@ const App: React.FC = () => {
   };
 
   const handleAddToItinerary = (place: Place) => {
-    const newItem: ItineraryItem = {
-      id: Date.now().toString(),
-      time: 'TBD',
-      period: 'Afternoon',
-      activity: place.title,
-      placeId: place.id,
-      description: 'Added from discovery',
-      image: place.image,
-      rating: place.rating
-    };
-    setItineraryItems(prev => [...prev, newItem]);
+    // Check if already in selection
+    if (!tripSelection.find(p => p.id === place.id)) {
+        setTripSelection(prev => [...prev, place]);
+    }
     setCurrentView('itinerary');
+  };
+
+  const toggleTripSelection = (place: Place) => {
+    setTripSelection(prev => {
+        if (prev.find(p => p.id === place.id)) {
+            return prev.filter(p => p.id !== place.id);
+        } else {
+            return [...prev, place];
+        }
+    });
   };
 
   const handleSavePlace = async (place: Place) => {
@@ -112,6 +119,8 @@ const App: React.FC = () => {
                 searchTerm={searchTerm} 
                 onSearch={handleSearch}
                 onSavePlace={handleSavePlace}
+                tripSelection={tripSelection}
+                onToggleTripSelection={toggleTripSelection}
             />
         );
       case 'details':
@@ -123,9 +132,17 @@ const App: React.FC = () => {
             onSave={handleSavePlace}
             isSaved={savedPlaces.some(p => p.id === selectedPlace.id)}
           />
-        ) : <Discover onSelectPlace={handlePlaceSelect} searchTerm={searchTerm} onSearch={handleSearch} />;
+        ) : <Discover onSelectPlace={handlePlaceSelect} searchTerm={searchTerm} onSearch={handleSearch} tripSelection={tripSelection} onToggleTripSelection={toggleTripSelection} />;
       case 'itinerary':
-        return <Itinerary items={itineraryItems} setItems={setItineraryItems} onBack={() => setCurrentView('home')} />;
+        return (
+            <Itinerary 
+                items={itineraryItems} 
+                setItems={setItineraryItems} 
+                onBack={() => setCurrentView('home')}
+                tripSelection={tripSelection}
+                setTripSelection={setTripSelection}
+            />
+        );
       case 'planner':
         return <ChatPlanner onBack={() => setCurrentView('home')} />;
       case 'budget':
@@ -215,7 +232,11 @@ const App: React.FC = () => {
                 onClick={() => handleNavClick('itinerary')}
                 className={`w-16 h-16 rounded-full flex items-center justify-center shadow-xl transform transition-all duration-300 ${currentView === 'itinerary' ? 'bg-slate-800 dark:bg-slate-700 text-teal-400 scale-110' : 'bg-teal-500 text-white hover:scale-105 hover:bg-teal-400'}`}
             >
-                <MapIcon size={26} />
+                {tripSelection.length > 0 ? (
+                    <span className="font-bold text-lg">{tripSelection.length}</span>
+                ) : (
+                    <MapIcon size={26} />
+                )}
             </button>
           </div>
 
