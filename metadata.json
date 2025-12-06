@@ -1,0 +1,9 @@
+{
+  "name": "Wanderlust AI",
+  "description": "An AI-powered travel explorer helping you discover hidden gems, generate itineraries, and find local events.",
+  "requestFramePermissions": [
+    "geolocation",
+    "microphone",
+    "camera"
+  ]
+}
