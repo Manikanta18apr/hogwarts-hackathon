@@ -1,20 +1,64 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# DeshaDarsana – Firebase + Google Maps Place Discovery App
 
-# Run and deploy your AI Studio app
+This project enables users to **search for places using Google Maps**, view place details, and **save selected places into Firebase Firestore**.  
+The app then displays the saved places as a **list** and as **markers on a map**, allowing users to build their own personalized local guide.
 
-This contains everything you need to run your app locally.
+---
 
-View your app in AI Studio: https://ai.studio/apps/drive/10uTdNizYrntudf2Eaq07rBU4a1v6E-cw
+## ⭐ Key Features
 
-## Run Locally
+### **1. Google Maps Autocomplete Search**
+- Users can search any place using Google's Autocomplete API.
+- Real-time suggestions improve speed and accuracy.
+- Selecting a place returns its **Google Place ID**.
 
-**Prerequisites:**  Node.js
+### **2. Save Places to Firebase Firestore**
+- The selected `place_id` is sent to a secure Firebase Cloud Function.
+- The server calls **Google Place Details API**.
+- Clean, structured place data is stored in Firestore under:
 
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### **3. View Saved Places Inside the App**
+- All saved places appear in a **list view**.
+- Each place includes:
+- Name  
+- Address  
+- Rating  
+- Types  
+- Photos  
+- Saved places also appear as **markers on a Google Map**.
+
+### **4. Secure Google API Handling (Cloud Functions)**
+- All Google API calls happen **server-side**, keeping API keys hidden.
+- Prevents misuse and client-side quota abuse.
+
+### **5. Real-Time Sync with Firestore**
+- Whenever a place is added, deleted, or updated:
+- UI updates instantly for all users.
+- No manual refresh required.
+
+### **6. Expandable Architecture**
+You can easily add:
+- User notes for each place  
+- Favorites and collections  
+- Community-shared local gems  
+- Travel itineraries  
+- AI-based recommendations  
+
+---
+
+## 📌 Example Firestore Structure
+
+```md
+places/
+ {placeId}/
+    name: string
+    address: string
+    location: GeoPoint
+    rating: number
+    types: array
+    photos: array
+    website: string
+    phone: string
+    addedBy: userId
+    addedAt: timestamp
