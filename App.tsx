@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ViewState, Place, ItineraryItem } from './types';
+import { ViewState, Place, ItineraryItem, SavedPlace } from './types';
 import { Home as HomeIcon, Compass, Map as MapIcon, Calendar, User, Mic } from 'lucide-react';
 
 // Components
@@ -15,17 +15,21 @@ import Onboarding from './components/Onboarding';
 import ChatPlanner from './components/ChatPlanner';
 import Budget from './components/Budget';
 
+// Services
+import { getSavedPlaces, savePlaceToBackend, removePlaceFromBackend } from './services/mockBackend';
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('onboarding');
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [itineraryItems, setItineraryItems] = useState<ItineraryItem[]>([]);
+  const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // Initialize theme
+  // Initialize theme and data
   useEffect(() => {
-    // Check local storage or system preference
+    // Theme
     const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     
@@ -36,7 +40,15 @@ const App: React.FC = () => {
       setIsDarkMode(false);
       document.documentElement.classList.remove('dark');
     }
+
+    // Load initial data (Simulating Firestore subscription)
+    loadSavedPlaces();
   }, []);
+
+  const loadSavedPlaces = async () => {
+    const places = await getSavedPlaces();
+    setSavedPlaces(places);
+  };
 
   const toggleTheme = () => {
     setIsDarkMode(prev => {
@@ -77,6 +89,16 @@ const App: React.FC = () => {
     setCurrentView('itinerary');
   };
 
+  const handleSavePlace = async (place: Place) => {
+      await savePlaceToBackend(place);
+      await loadSavedPlaces(); // Refresh list
+  };
+
+  const handleRemovePlace = async (placeId: string) => {
+      await removePlaceFromBackend(placeId);
+      await loadSavedPlaces(); // Refresh list
+  };
+
   const renderContent = () => {
     switch (currentView) {
       case 'onboarding':
@@ -84,13 +106,22 @@ const App: React.FC = () => {
       case 'home':
         return <Home onNavigate={setCurrentView} onSearch={handleSearch} />;
       case 'discover':
-        return <Discover onSelectPlace={handlePlaceSelect} searchTerm={searchTerm} onSearch={handleSearch} />;
+        return (
+            <Discover 
+                onSelectPlace={handlePlaceSelect} 
+                searchTerm={searchTerm} 
+                onSearch={handleSearch}
+                onSavePlace={handleSavePlace}
+            />
+        );
       case 'details':
         return selectedPlace ? (
           <PlaceDetails 
             place={selectedPlace} 
             onBack={() => setCurrentView('discover')} 
             onAddToItinerary={handleAddToItinerary}
+            onSave={handleSavePlace}
+            isSaved={savedPlaces.some(p => p.id === selectedPlace.id)}
           />
         ) : <Discover onSelectPlace={handlePlaceSelect} searchTerm={searchTerm} onSearch={handleSearch} />;
       case 'itinerary':
@@ -100,11 +131,19 @@ const App: React.FC = () => {
       case 'budget':
         return <Budget onBack={() => setCurrentView('home')} />;
       case 'map':
-        return <MapScreen />;
+        return <MapScreen savedPlaces={savedPlaces} onSelectPlace={handlePlaceSelect} />;
       case 'events':
         return <Events />;
       case 'profile':
-        return <Profile isDarkMode={isDarkMode} toggleTheme={toggleTheme} />;
+        return (
+            <Profile 
+                isDarkMode={isDarkMode} 
+                toggleTheme={toggleTheme} 
+                savedPlaces={savedPlaces}
+                onRemovePlace={handleRemovePlace}
+                onSelectPlace={handlePlaceSelect}
+            />
+        );
       case 'alerts':
          return (
              <div className="flex flex-col items-center justify-center h-screen bg-slate-50 dark:bg-slate-950 p-6 text-center">
@@ -145,10 +184,10 @@ const App: React.FC = () => {
       </div>
 
       {/* Mic Trigger (Floating) */}
-      {!isVoiceActive && showNav && (
+      {!isVoiceActive && currentView !== 'onboarding' && (
           <button 
             onClick={() => setIsVoiceActive(true)}
-            className="absolute bottom-24 right-6 w-14 h-14 bg-indigo-600 dark:bg-indigo-500 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-700 dark:hover:bg-indigo-600 active:scale-95 transition-all z-40 animate-bounce-subtle"
+            className={`absolute right-6 w-14 h-14 bg-indigo-600 dark:bg-indigo-500 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-700 dark:hover:bg-indigo-600 active:scale-95 transition-all z-40 hover:scale-110 ${showNav ? 'bottom-24' : 'bottom-6'}`}
             aria-label="Start Voice Assistant"
           >
             <Mic size={24} />

@@ -1,12 +1,16 @@
 import React from 'react';
-import { User, Settings, Heart, Map, Moon, Sun, ChevronRight, Bell } from 'lucide-react';
+import { User, Settings, Heart, Map, Moon, Sun, ChevronRight, Bell, Trash2 } from 'lucide-react';
+import { Place, SavedPlace } from '../types';
 
 interface ProfileProps {
   isDarkMode?: boolean;
   toggleTheme?: () => void;
+  savedPlaces?: SavedPlace[];
+  onRemovePlace?: (id: string) => void;
+  onSelectPlace?: (place: Place) => void;
 }
 
-const Profile: React.FC<ProfileProps> = ({ isDarkMode, toggleTheme }) => {
+const Profile: React.FC<ProfileProps> = ({ isDarkMode, toggleTheme, savedPlaces = [], onRemovePlace, onSelectPlace }) => {
   return (
     <div className="pb-24 pt-10 px-6 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
       <div className="flex items-center space-x-4 mb-8">
@@ -23,8 +27,8 @@ const Profile: React.FC<ProfileProps> = ({ isDarkMode, toggleTheme }) => {
         <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4">Your Stats</h3>
         <div className="grid grid-cols-2 gap-3">
             <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center">
-                <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">12</div>
-                <div className="text-xs text-slate-500 dark:text-slate-500 uppercase tracking-wide">Hidden Gems</div>
+                <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">{savedPlaces.length}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-500 uppercase tracking-wide">Saved Places</div>
             </div>
              <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center">
                 <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">5</div>
@@ -52,10 +56,45 @@ const Profile: React.FC<ProfileProps> = ({ isDarkMode, toggleTheme }) => {
             </div>
         </div>
 
-        <ProfileMenuItem icon={<Heart size={20} />} label="Saved Places" />
         <ProfileMenuItem icon={<Map size={20} />} label="Past Itineraries" />
         <ProfileMenuItem icon={<Bell size={20} />} label="Notifications" />
         <ProfileMenuItem icon={<Settings size={20} />} label="Settings" last />
+      </div>
+
+      {/* Saved Places List */}
+      <div className="mb-8">
+          <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center">
+              <Heart size={18} className="mr-2 text-rose-500 fill-rose-500" />
+              Saved Places
+          </h3>
+          {savedPlaces.length === 0 ? (
+              <div className="text-center py-6 text-slate-400 text-sm bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                  No saved places yet. Start exploring!
+              </div>
+          ) : (
+              <div className="space-y-3">
+                  {savedPlaces.map(place => (
+                      <div key={place.id} className="bg-white dark:bg-slate-900 p-3 rounded-xl flex items-center justify-between shadow-sm border border-slate-100 dark:border-slate-800">
+                          <div 
+                            className="flex items-center flex-1 cursor-pointer"
+                            onClick={() => onSelectPlace && onSelectPlace(place)}
+                          >
+                              <img src={place.image} alt={place.title} className="w-12 h-12 rounded-lg object-cover mr-3" />
+                              <div>
+                                  <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm">{place.title}</h4>
+                                  <span className="text-xs text-slate-500 dark:text-slate-400">{place.rating} ★ • {place.cost}</span>
+                              </div>
+                          </div>
+                          <button 
+                            onClick={() => onRemovePlace && onRemovePlace(place.id)}
+                            className="p-2 text-slate-400 hover:text-rose-500 transition-colors"
+                          >
+                              <Trash2 size={18} />
+                          </button>
+                      </div>
+                  ))}
+              </div>
+          )}
       </div>
       
       <div className="mt-6">

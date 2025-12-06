@@ -1,14 +1,32 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Place } from '../types';
-import { ArrowLeft, MapPin, Clock, Wallet, CheckCircle, Share2, Navigation } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Wallet, CheckCircle, Share2, Navigation, Heart } from 'lucide-react';
 
 interface PlaceDetailsProps {
   place: Place;
   onBack: () => void;
   onAddToItinerary: (place: Place) => void;
+  onSave?: (place: Place) => Promise<void>;
+  isSaved?: boolean;
 }
 
-const PlaceDetails: React.FC<PlaceDetailsProps> = ({ place, onBack, onAddToItinerary }) => {
+const PlaceDetails: React.FC<PlaceDetailsProps> = ({ place, onBack, onAddToItinerary, onSave, isSaved = false }) => {
+  const [saving, setSaving] = useState(false);
+  const [savedLocal, setSavedLocal] = useState(isSaved);
+
+  const handleSave = async () => {
+    if (!onSave) return;
+    setSaving(true);
+    try {
+        await onSave(place);
+        setSavedLocal(true);
+    } catch (e) {
+        console.error(e);
+    } finally {
+        setSaving(false);
+    }
+  };
+
   return (
     <div className="bg-white dark:bg-slate-950 min-h-screen pb-24 transition-colors duration-300">
       {/* Hero Image */}
@@ -80,10 +98,12 @@ const PlaceDetails: React.FC<PlaceDetailsProps> = ({ place, onBack, onAddToItine
 
         <div className="flex gap-3 pb-8">
              <button 
-                className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 py-4 rounded-2xl font-bold shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center"
+                onClick={handleSave}
+                disabled={savedLocal || saving}
+                className={`flex-1 border text-slate-700 dark:text-slate-200 py-4 rounded-2xl font-bold shadow-sm transition-all flex items-center justify-center ${savedLocal ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:bg-slate-50'}`}
             >
-                <Navigation className="mr-2" size={20} />
-                Directions
+                <Heart className={`mr-2 ${savedLocal ? 'fill-green-600 text-green-600' : ''}`} size={20} />
+                {saving ? 'Saving...' : savedLocal ? 'Saved' : 'Save'}
             </button>
             <button 
                 onClick={() => onAddToItinerary(place)}

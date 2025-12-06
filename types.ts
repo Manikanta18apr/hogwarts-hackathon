@@ -12,6 +12,12 @@ export interface Place {
   bestTime: string;
   coordinates: { lat: number; lng: number };
   hiddenGemReason?: string;
+  address?: string;
+}
+
+export interface SavedPlace extends Place {
+  addedAt: string; // ISO Date string
+  notes?: string;
 }
 
 export interface ItineraryItem {

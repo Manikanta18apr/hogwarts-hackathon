@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Place } from '../types';
-import { Filter, Star, MapPin, X, Search, Loader } from 'lucide-react';
+import { Filter, Star, MapPin, X, Search, Loader, Heart } from 'lucide-react';
 import { discoverPlaces } from '../services/geminiService';
 
 interface DiscoverProps {
   onSelectPlace: (place: Place) => void;
   searchTerm?: string;
   onSearch?: (term: string) => void;
+  onSavePlace?: (place: Place) => void;
 }
 
 const mockPlaces: Place[] = [
@@ -64,7 +65,7 @@ const mockPlaces: Place[] = [
   }
 ];
 
-const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onSearch }) => {
+const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onSearch, onSavePlace }) => {
   const [activeFilter, setActiveFilter] = useState('All');
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
   const [results, setResults] = useState<Place[]>(mockPlaces);
@@ -118,6 +119,11 @@ const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onS
       if (onSearch) {
           onSearch(localSearchTerm);
       }
+  };
+
+  const handleSave = (e: React.MouseEvent, place: Place) => {
+      e.stopPropagation();
+      if(onSavePlace) onSavePlace(place);
   };
 
   return (
@@ -189,7 +195,7 @@ const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onS
                 <div 
                     key={place.id}
                     onClick={() => onSelectPlace(place)}
-                    className="bg-white dark:bg-slate-900 rounded-3xl shadow-md overflow-hidden cursor-pointer active:scale-95 transition-all border border-slate-100 dark:border-slate-800"
+                    className="bg-white dark:bg-slate-900 rounded-3xl shadow-md overflow-hidden cursor-pointer active:scale-95 transition-all border border-slate-100 dark:border-slate-800 relative group"
                 >
                     <div className="h-48 relative">
                     <img src={place.image} alt={place.title} className="w-full h-full object-cover" />
@@ -197,6 +203,13 @@ const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onS
                         <Star size={14} className="text-yellow-500 fill-yellow-500 mr-1" />
                         <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{place.rating}</span>
                     </div>
+                    {/* Quick Save Button Overlay */}
+                    <button 
+                        onClick={(e) => handleSave(e, place)}
+                        className="absolute top-4 left-4 p-2 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/40 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                        <Heart size={18} />
+                    </button>
                     </div>
                     <div className="p-5">
                     <div className="flex justify-between items-start mb-2">

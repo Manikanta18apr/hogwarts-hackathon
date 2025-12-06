@@ -46,7 +46,7 @@ const LiveVoiceControl: React.FC<LiveVoiceControlProps> = ({ isOpen, onClose, on
           properties: {
             screen: {
               type: Type.STRING,
-              enum: ["home", "discover", "itinerary", "map", "events", "profile"],
+              enum: ["home", "discover", "itinerary", "map", "events", "profile", "planner", "budget", "alerts"],
               description: "The screen to navigate to."
             }
           },
