@@ -75,14 +75,12 @@ const LiveVoiceControl: React.FC<LiveVoiceControlProps> = ({ isOpen, onClose, on
   const updateTranscript = (role: 'user' | 'model', text: string, isPartial: boolean) => {
     setTranscripts(prev => {
       const last = prev[prev.length - 1];
-      // If the last message is from the same role and was partial, update it
       if (last && last.role === role && last.isPartial) {
         return [
           ...prev.slice(0, -1),
           { ...last, text, isPartial }
         ];
       }
-      // Otherwise add new message
       return [
         ...prev,
         { id: Date.now().toString(), role, text, isPartial }
@@ -102,15 +100,10 @@ const LiveVoiceControl: React.FC<LiveVoiceControlProps> = ({ isOpen, onClose, on
 
       const ai = new GoogleGenAI({ apiKey });
 
-      // 1. Setup Audio Output (24kHz for Gemini Live)
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-      
-      // 2. Setup Audio Input (16kHz required by API)
       inputContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-      
       streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Connect to Gemini Live
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-09-2025',
         config: {
@@ -129,14 +122,11 @@ const LiveVoiceControl: React.FC<LiveVoiceControlProps> = ({ isOpen, onClose, on
             processAudioInput(sessionPromise);
           },
           onmessage: async (msg: LiveServerMessage) => {
-             // Handle Tool Calls (Voice Control)
              if (msg.toolCall) {
                 for (const fc of msg.toolCall.functionCalls) {
                     if (fc.name === 'navigate') {
                         const screen = (fc.args as any).screen;
                         onNavigate(screen as ViewState);
-                        
-                        // Send success response back to model
                         sessionPromise.then(session => session.sendToolResponse({
                             functionResponses: {
                                 id: fc.id,
@@ -148,14 +138,12 @@ const LiveVoiceControl: React.FC<LiveVoiceControlProps> = ({ isOpen, onClose, on
                 }
              }
 
-             // Handle Audio Output
              const audioData = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
              if (audioData) {
                setStatus('speaking');
                playAudio(audioData);
              }
 
-             // Handle Transcription
              const outTx = msg.serverContent?.outputTranscription?.text;
              if (outTx) {
                 currentOutputRef.current += outTx;
@@ -168,7 +156,6 @@ const LiveVoiceControl: React.FC<LiveVoiceControlProps> = ({ isOpen, onClose, on
                 updateTranscript('user', currentInputRef.current, true);
              }
 
-             // Turn Complete: Finalize text
              if (msg.serverContent?.turnComplete) {
                 if (currentInputRef.current) {
                    updateTranscript('user', currentInputRef.current, false);
@@ -178,11 +165,7 @@ const LiveVoiceControl: React.FC<LiveVoiceControlProps> = ({ isOpen, onClose, on
                    updateTranscript('model', currentOutputRef.current, false);
                    currentOutputRef.current = '';
                 }
-                
-                // Reset to listening after a short delay if no more audio coming
                 setTimeout(() => {
-                    // Check if we are still conceptually "speaking" (playing audio) might need more complex logic
-                    // but for now, switching back to listening visually is fine.
                     setStatus('listening');
                 }, 500);
              }
@@ -206,14 +189,12 @@ const LiveVoiceControl: React.FC<LiveVoiceControlProps> = ({ isOpen, onClose, on
   };
 
   const stopSession = () => {
-    // Cleanup audio nodes
     if (sourceRef.current) sourceRef.current.disconnect();
     if (processorRef.current) processorRef.current.disconnect();
     if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
     if (audioContextRef.current) audioContextRef.current.close();
     if (inputContextRef.current) inputContextRef.current.close();
     
-    // Reset state
     audioContextRef.current = null;
     inputContextRef.current = null;
   };
@@ -226,20 +207,15 @@ const LiveVoiceControl: React.FC<LiveVoiceControlProps> = ({ isOpen, onClose, on
      
      processor.onaudioprocess = (e) => {
         const inputData = e.inputBuffer.getChannelData(0);
-        
-        // Simple visualizer volume calculation
         let sum = 0;
         for(let i=0; i<inputData.length; i++) sum += inputData[i] * inputData[i];
         const rms = Math.sqrt(sum / inputData.length);
-        setVolume(Math.min(rms * 5, 1)); // Scale for visual
+        setVolume(Math.min(rms * 5, 1)); 
 
-        // Convert Float32 to Int16 for API
         const pcm16 = new Int16Array(inputData.length);
         for (let i = 0; i < inputData.length; i++) {
            pcm16[i] = Math.max(-1, Math.min(1, inputData[i])) * 0x7FFF;
         }
-        
-        // Base64 encode
         const base64Audio = btoa(String.fromCharCode(...new Uint8Array(pcm16.buffer)));
         
         sessionPromise.then(session => {
@@ -254,7 +230,6 @@ const LiveVoiceControl: React.FC<LiveVoiceControlProps> = ({ isOpen, onClose, on
 
      source.connect(processor);
      processor.connect(inputContextRef.current.destination);
-     
      sourceRef.current = source;
      processorRef.current = processor;
   };
@@ -262,32 +237,26 @@ const LiveVoiceControl: React.FC<LiveVoiceControlProps> = ({ isOpen, onClose, on
   const playAudio = async (base64String: string) => {
     if (!audioContextRef.current) return;
     
-    // Decode base64
     const binaryString = atob(base64String);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
     }
     
-    // Convert PCM16 to Float32
     const int16Data = new Int16Array(bytes.buffer);
     const float32Data = new Float32Array(int16Data.length);
     for(let i=0; i<int16Data.length; i++) {
         float32Data[i] = int16Data[i] / 32768.0;
     }
 
-    // Create Buffer
     const buffer = audioContextRef.current.createBuffer(1, float32Data.length, 24000);
     buffer.getChannelData(0).set(float32Data);
 
-    // Play
     const source = audioContextRef.current.createBufferSource();
     source.buffer = buffer;
     source.connect(audioContextRef.current.destination);
     
-    // Schedule
     const currentTime = audioContextRef.current.currentTime;
-    // If nextStartTime is in the past, reset it to now
     if (nextStartTimeRef.current < currentTime) {
         nextStartTimeRef.current = currentTime;
     }
@@ -300,42 +269,39 @@ const LiveVoiceControl: React.FC<LiveVoiceControlProps> = ({ isOpen, onClose, on
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center pointer-events-none">
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto" onClick={onClose}></div>
       
-      {/* Main Card */}
-      <div className="bg-white w-full max-w-md rounded-t-3xl p-6 pointer-events-auto relative transform transition-transform animate-slide-up flex flex-col max-h-[80vh]">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-t-3xl p-6 pointer-events-auto relative transform transition-transform animate-slide-up flex flex-col max-h-[80vh]">
         
-        <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
-            <div className="flex items-center text-teal-600 font-semibold">
+        <div className="flex justify-between items-center mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+            <div className="flex items-center text-teal-600 dark:text-teal-400 font-semibold">
                 <MessageSquare size={18} className="mr-2" />
                 <span>Live Support</span>
             </div>
-            <button onClick={onClose} className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200">
+            <button onClick={onClose} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700">
                 <X size={20} />
             </button>
         </div>
 
-        {/* Chat History / Transaction Log */}
         <div 
             ref={scrollRef}
             className="flex-1 overflow-y-auto mb-6 space-y-4 px-1 min-h-[200px]"
         >
             {transcripts.length === 0 && (
-                <div className="text-center text-slate-400 text-sm py-10">
+                <div className="text-center text-slate-400 dark:text-slate-500 text-sm py-10">
                     Listening... Ask for help or say "Translate this"
                 </div>
             )}
             {transcripts.map((t) => (
                 <div key={t.id} className={`flex ${t.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`flex max-w-[85%] ${t.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 ${t.role === 'user' ? 'bg-slate-200 text-slate-600 ml-2' : 'bg-teal-100 text-teal-600 mr-2'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 ${t.role === 'user' ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 ml-2' : 'bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-300 mr-2'}`}>
                             {t.role === 'user' ? <User size={14} /> : <Bot size={14} />}
                         </div>
                         <div className={`p-3 rounded-2xl text-sm ${
                             t.role === 'user' 
-                                ? 'bg-slate-100 text-slate-800 rounded-tr-none' 
-                                : 'bg-teal-50 text-teal-900 rounded-tl-none border border-teal-100'
+                                ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-tr-none' 
+                                : 'bg-teal-50 dark:bg-teal-900/30 text-teal-900 dark:text-teal-100 rounded-tl-none border border-teal-100 dark:border-teal-800'
                         }`}>
                             {t.text}
                         </div>
@@ -344,14 +310,14 @@ const LiveVoiceControl: React.FC<LiveVoiceControlProps> = ({ isOpen, onClose, on
             ))}
         </div>
 
-        <div className="flex flex-col items-center justify-center pt-2 pb-4 border-t border-slate-50">
+        <div className="flex flex-col items-center justify-center pt-2 pb-4 border-t border-slate-50 dark:border-slate-800">
             {/* Visualizer Circle */}
             <div className="relative mb-4">
                 <div 
                     className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-100 ${
-                        status === 'error' ? 'bg-red-100 text-red-600' :
-                        status === 'speaking' ? 'bg-teal-100 text-teal-600' : 
-                        'bg-indigo-600 text-white'
+                        status === 'error' ? 'bg-red-100 dark:bg-red-900 text-red-600' :
+                        status === 'speaking' ? 'bg-teal-100 dark:bg-teal-900 text-teal-600' : 
+                        'bg-indigo-600 dark:bg-indigo-500 text-white'
                     }`}
                     style={{
                         transform: `scale(${1 + volume * 0.5})`,
@@ -365,7 +331,6 @@ const LiveVoiceControl: React.FC<LiveVoiceControlProps> = ({ isOpen, onClose, on
                     )}
                 </div>
                 
-                {/* Ripples */}
                 {status === 'listening' && (
                     <>
                         <div className="absolute inset-0 rounded-full border-2 border-indigo-400 opacity-50 animate-ping"></div>
@@ -374,7 +339,7 @@ const LiveVoiceControl: React.FC<LiveVoiceControlProps> = ({ isOpen, onClose, on
                 )}
             </div>
 
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">
+            <p className="text-slate-400 dark:text-slate-500 text-xs font-medium uppercase tracking-wider">
                 {status === 'connecting' ? 'Connecting...' : 
                  status === 'listening' ? 'Listening...' : 
                  status === 'speaking' ? 'Local Support Agent Speaking...' : 

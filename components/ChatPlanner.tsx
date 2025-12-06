@@ -10,7 +10,7 @@ interface Message {
   id: string;
   role: 'user' | 'model';
   text: string;
-  type?: 'text' | 'plan'; // Could expand for structured cards
+  type?: 'text' | 'plan'; 
 }
 
 const ChatPlanner: React.FC<ChatPlannerProps> = ({ onBack }) => {
@@ -41,7 +41,6 @@ const ChatPlanner: React.FC<ChatPlannerProps> = ({ onBack }) => {
         
         const history = messages.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
         
-        // Use chat model context
         const chat = ai.chats.create({
             model: 'gemini-2.5-flash',
             history: history,
@@ -64,21 +63,21 @@ const ChatPlanner: React.FC<ChatPlannerProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50">
+    <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       {/* Header */}
-      <div className="bg-white p-4 pt-10 shadow-sm border-b border-slate-100 flex justify-between items-center z-10">
+      <div className="bg-white dark:bg-slate-900 p-4 pt-10 shadow-sm border-b border-slate-100 dark:border-slate-800 flex justify-between items-center z-10">
         <div className="flex items-center">
-            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 mr-3">
+            <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mr-3">
                 <Sparkles size={20} />
             </div>
             <div>
-                <h2 className="font-bold text-slate-800">AI Planner</h2>
+                <h2 className="font-bold text-slate-800 dark:text-white">AI Planner</h2>
                 <p className="text-xs text-green-500 font-medium flex items-center">
                     <span className="w-2 h-2 bg-green-500 rounded-full mr-1"></span> Online
                 </p>
             </div>
         </div>
-        <button onClick={onBack} className="text-sm font-semibold text-slate-500 hover:text-slate-800">
+        <button onClick={onBack} className="text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200">
             Close
         </button>
       </div>
@@ -88,13 +87,13 @@ const ChatPlanner: React.FC<ChatPlannerProps> = ({ onBack }) => {
         {messages.map((msg) => (
             <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`flex max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 ${msg.role === 'user' ? 'bg-slate-200 text-slate-600 ml-2' : 'bg-indigo-600 text-white mr-2 shadow-lg shadow-indigo-200'}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 ${msg.role === 'user' ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 ml-2' : 'bg-indigo-600 text-white mr-2 shadow-lg shadow-indigo-200 dark:shadow-none'}`}>
                         {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
                     </div>
                     <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${
                         msg.role === 'user' 
-                            ? 'bg-white text-slate-800 rounded-tr-none border border-slate-100' 
-                            : 'bg-indigo-50 text-indigo-900 rounded-tl-none border border-indigo-100'
+                            ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-tr-none border border-slate-100 dark:border-slate-700' 
+                            : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-900 dark:text-indigo-100 rounded-tl-none border border-indigo-100 dark:border-indigo-800'
                     }`}>
                         <div className="whitespace-pre-wrap">{msg.text}</div>
                     </div>
@@ -103,7 +102,7 @@ const ChatPlanner: React.FC<ChatPlannerProps> = ({ onBack }) => {
         ))}
         {isLoading && (
             <div className="flex justify-start">
-                <div className="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm border border-slate-100 ml-10 flex space-x-1">
+                <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl rounded-tl-none shadow-sm border border-slate-100 dark:border-slate-800 ml-10 flex space-x-1">
                     <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></div>
                     <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce delay-75"></div>
                     <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce delay-150"></div>
@@ -113,7 +112,7 @@ const ChatPlanner: React.FC<ChatPlannerProps> = ({ onBack }) => {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-white border-t border-slate-100">
+      <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
         <div className="relative">
             <input
                 type="text"
@@ -121,15 +120,15 @@ const ChatPlanner: React.FC<ChatPlannerProps> = ({ onBack }) => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 placeholder="Type your travel plans..."
-                className="w-full pl-4 pr-24 py-4 bg-slate-50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 placeholder:text-slate-400 font-medium transition-all"
+                className="w-full pl-4 pr-24 py-4 bg-slate-50 dark:bg-slate-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-medium transition-all"
             />
             <div className="absolute right-2 top-2 flex space-x-1">
-                 <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors">
+                 <button className="p-2 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl transition-colors">
                     <Mic size={20} />
                 </button>
                 <button 
                     onClick={handleSend}
-                    className={`p-2 rounded-xl transition-all shadow-md ${input.trim() ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-200 text-slate-400'}`}
+                    className={`p-2 rounded-xl transition-all shadow-md ${input.trim() ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500'}`}
                 >
                     <Send size={20} />
                 </button>

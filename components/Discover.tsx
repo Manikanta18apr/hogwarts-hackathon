@@ -70,12 +70,10 @@ const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onS
   const [results, setResults] = useState<Place[]>(mockPlaces);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Sync props to local state
   useEffect(() => {
     setLocalSearchTerm(searchTerm);
   }, [searchTerm]);
 
-  // Fetch AI results when searchTerm changes
   useEffect(() => {
     const fetchPlaces = async () => {
       if (!searchTerm || searchTerm.trim() === '') {
@@ -89,18 +87,16 @@ const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onS
         if (aiResults && aiResults.length > 0) {
           setResults(aiResults);
         } else {
-          // Keep mocks or show empty? Let's show empty to indicate no AI results found
           setResults([]); 
         }
       } catch (error) {
         console.error("Search failed", error);
-        setResults(mockPlaces); // Fallback
+        setResults(mockPlaces);
       } finally {
         setIsLoading(false);
       }
     };
 
-    // Debounce slightly or just call
     const timer = setTimeout(() => {
         fetchPlaces();
     }, 500);
@@ -111,17 +107,10 @@ const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onS
   const filters = ['All', 'Distance', 'Budget', 'Popular', 'Hidden'];
 
   const filteredPlaces = results.filter(place => {
-    // Note: We don't filter by search term here if we are showing AI results 
-    // because the AI results are ALREADY filtered by the query.
-    // However, if we are showing mockPlaces (when search is empty), we might want filter.
-    // But if search is empty, we show all mock places.
-    // So mostly we just need the category filters here.
-
     let matchesFilter = true;
     if (activeFilter === 'Popular') matchesFilter = place.rating >= 4.8;
     if (activeFilter === 'Budget') matchesFilter = place.cost === '$' || place.cost === 'Free';
     if (activeFilter === 'Hidden') matchesFilter = !!place.hiddenGemReason;
-    
     return matchesFilter;
   });
 
@@ -132,7 +121,7 @@ const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onS
   };
 
   return (
-    <div className="pb-24 pt-4 px-4">
+    <div className="pb-24 pt-4 px-4 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
       {/* Search Header */}
       <div className="flex space-x-3 mb-6">
         <div className="flex-1 relative">
@@ -142,11 +131,11 @@ const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onS
                 onChange={(e) => setLocalSearchTerm(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
                 placeholder="Search places..."
-                className="w-full pl-10 pr-4 py-3 bg-white rounded-xl shadow-sm border border-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
             />
             <button 
                 onClick={handleSearchSubmit}
-                className="absolute left-3 top-3.5 text-slate-400 hover:text-teal-600"
+                className="absolute left-3 top-3.5 text-slate-400 dark:text-slate-500 hover:text-teal-600 dark:hover:text-teal-400"
             >
                 <Search size={18} />
             </button>
@@ -156,13 +145,13 @@ const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onS
                         setLocalSearchTerm('');
                         if (onSearch) onSearch('');
                     }}
-                    className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600"
+                    className="absolute right-3 top-3.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                 >
                     <X size={18} />
                 </button>
             )}
         </div>
-        <button className="p-3 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-600">
+        <button className="p-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400">
           <Filter size={20} />
         </button>
       </div>
@@ -176,7 +165,7 @@ const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onS
             className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
               activeFilter === filter
                 ? 'bg-teal-600 text-white shadow-md'
-                : 'bg-white text-slate-600 border border-slate-200'
+                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
             }`}
           >
             {filter}
@@ -187,8 +176,8 @@ const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onS
       {/* Loading State */}
       {isLoading && (
           <div className="flex flex-col items-center justify-center py-12">
-              <Loader className="animate-spin text-teal-600 mb-4" size={32} />
-              <p className="text-slate-500 font-medium">Finding the best spots for you...</p>
+              <Loader className="animate-spin text-teal-600 dark:text-teal-400 mb-4" size={32} />
+              <p className="text-slate-500 dark:text-slate-400 font-medium">Finding the best spots for you...</p>
           </div>
       )}
 
@@ -200,32 +189,32 @@ const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onS
                 <div 
                     key={place.id}
                     onClick={() => onSelectPlace(place)}
-                    className="bg-white rounded-3xl shadow-md overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                    className="bg-white dark:bg-slate-900 rounded-3xl shadow-md overflow-hidden cursor-pointer active:scale-95 transition-all border border-slate-100 dark:border-slate-800"
                 >
                     <div className="h-48 relative">
                     <img src={place.image} alt={place.title} className="w-full h-full object-cover" />
-                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center shadow-sm">
+                    <div className="absolute top-4 right-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center shadow-sm">
                         <Star size={14} className="text-yellow-500 fill-yellow-500 mr-1" />
-                        <span className="text-xs font-bold text-slate-800">{place.rating}</span>
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{place.rating}</span>
                     </div>
                     </div>
                     <div className="p-5">
                     <div className="flex justify-between items-start mb-2">
-                        <h3 className="text-lg font-bold text-slate-900 leading-tight">{place.title}</h3>
-                        <span className="text-sm font-medium text-slate-500">{place.cost}</span>
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">{place.title}</h3>
+                        <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{place.cost}</span>
                     </div>
-                    <div className="flex items-center text-slate-400 mb-3 text-sm">
+                    <div className="flex items-center text-slate-400 dark:text-slate-500 mb-3 text-sm">
                         <MapPin size={14} className="mr-1" />
                         <span>{place.coordinates ? 'Nearby' : 'Location TBD'}</span>
                     </div>
                     <div className="flex flex-wrap gap-2 mb-3">
                         {place.tags && place.tags.map(tag => (
-                        <span key={tag} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-md">
+                        <span key={tag} className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs rounded-md">
                             {tag}
                         </span>
                         ))}
                     </div>
-                    <button className="w-full py-2 bg-teal-50 text-teal-700 font-semibold rounded-xl text-sm hover:bg-teal-100 transition-colors">
+                    <button className="w-full py-2 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 font-semibold rounded-xl text-sm hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-colors">
                         View Details
                     </button>
                     </div>
@@ -233,17 +222,17 @@ const Discover: React.FC<DiscoverProps> = ({ onSelectPlace, searchTerm = '', onS
                 ))
             ) : (
                 <div className="text-center py-10">
-                    <div className="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+                    <div className="bg-slate-100 dark:bg-slate-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400 dark:text-slate-500">
                         <Search size={32} />
                     </div>
-                    <p className="text-slate-500 font-medium">No places found matching "{searchTerm}".</p>
+                    <p className="text-slate-500 dark:text-slate-400 font-medium">No places found matching "{searchTerm}".</p>
                     <button 
                         onClick={() => { 
                             setActiveFilter('All'); 
                             setLocalSearchTerm(''); 
                             if(onSearch) onSearch(''); 
                         }} 
-                        className="mt-4 text-teal-600 font-bold text-sm hover:underline"
+                        className="mt-4 text-teal-600 dark:text-teal-400 font-bold text-sm hover:underline"
                     >
                         Clear Search & Filters
                     </button>

@@ -31,26 +31,26 @@ const mockEvents: EventItem[] = [
 
 const Events: React.FC = () => {
   return (
-    <div className="pb-24 pt-4 px-4">
+    <div className="pb-24 pt-4 px-4 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
        <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">Happening Now</h2>
-        <span className="text-xs font-bold text-teal-600 bg-teal-50 px-3 py-1 rounded-full">3 Nearby</span>
+        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Happening Now</h2>
+        <span className="text-xs font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-3 py-1 rounded-full">3 Nearby</span>
       </div>
 
       <div className="space-y-4">
         {mockEvents.map(event => (
-            <div key={event.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+            <div key={event.id} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden flex flex-col">
                 <div className="h-40 relative">
                     <img src={event.image} alt={event.title} className="w-full h-full object-cover" />
-                    <div className="absolute top-3 left-3 bg-white/90 backdrop-blur px-2 py-1 rounded-lg">
-                        <span className="text-xs font-bold uppercase text-slate-800">{event.category}</span>
+                    <div className="absolute top-3 left-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur px-2 py-1 rounded-lg">
+                        <span className="text-xs font-bold uppercase text-slate-800 dark:text-slate-100">{event.category}</span>
                     </div>
                 </div>
                 <div className="p-4">
                     <div className="flex justify-between items-start mb-2">
                         <div>
-                             <h3 className="font-bold text-lg text-slate-800">{event.title}</h3>
-                             <div className="flex items-center text-slate-500 text-sm mt-1">
+                             <h3 className="font-bold text-lg text-slate-800 dark:text-white">{event.title}</h3>
+                             <div className="flex items-center text-slate-500 dark:text-slate-400 text-sm mt-1">
                                 <Calendar size={14} className="mr-1.5" />
                                 {event.date}
                              </div>
@@ -58,10 +58,10 @@ const Events: React.FC = () => {
                     </div>
                     
                     <div className="mt-4 flex gap-2">
-                        <button className="flex-1 bg-teal-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-teal-700">
+                        <button className="flex-1 bg-teal-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-teal-700 dark:hover:bg-teal-500">
                             Book / Join
                         </button>
-                        <button className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50">
+                        <button className="p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">
                             <Share2 size={18} />
                         </button>
                     </div>
@@ -70,11 +70,11 @@ const Events: React.FC = () => {
         ))}
       </div>
 
-      <div className="mt-8 bg-indigo-50 p-6 rounded-3xl text-center">
-        <Users size={32} className="mx-auto text-indigo-500 mb-2" />
-        <h3 className="font-bold text-indigo-900">Meet Locals</h3>
-        <p className="text-sm text-indigo-700 mt-1 mb-4">Connect with travelers and locals nearby.</p>
-        <button className="text-sm font-bold text-indigo-600 bg-white py-2 px-6 rounded-full shadow-sm">
+      <div className="mt-8 bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-3xl text-center">
+        <Users size={32} className="mx-auto text-indigo-500 dark:text-indigo-400 mb-2" />
+        <h3 className="font-bold text-indigo-900 dark:text-indigo-200">Meet Locals</h3>
+        <p className="text-sm text-indigo-700 dark:text-indigo-300 mt-1 mb-4">Connect with travelers and locals nearby.</p>
+        <button className="text-sm font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900 py-2 px-6 rounded-full shadow-sm">
             Join Community
         </button>
       </div>
