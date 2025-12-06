@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Search, MapPin, Sparkles, Wallet, Bell, Navigation } from 'lucide-react';
+import { Search, MapPin, Sparkles, Wallet, Bell, Navigation, Mic } from 'lucide-react';
 import { ViewState } from '../types';
+import VoiceSearchOverlay from './VoiceSearchOverlay'; // Import new VoiceSearchOverlay
 
 interface HomeProps {
   onNavigate: (view: ViewState) => void;
@@ -9,6 +10,7 @@ interface HomeProps {
 
 const Home: React.FC<HomeProps> = ({ onNavigate, onSearch }) => {
   const [searchText, setSearchText] = useState('');
+  const [isVoiceSearchActive, setIsVoiceSearchActive] = useState(false); // New state for voice search
 
   const quickAccess = [
     { 
@@ -41,6 +43,14 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onSearch }) => {
     },
   ];
 
+  const handleVoiceSearchComplete = (transcript: string) => {
+    setSearchText(transcript);
+    setIsVoiceSearchActive(false);
+    if (transcript.trim()) {
+      onSearch(transcript);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 pb-24 transition-colors duration-300">
       {/* Header */}
@@ -63,9 +73,16 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onSearch }) => {
             onChange={(e) => setSearchText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && onSearch(searchText)}
             placeholder="Where do you want to go?"
-            className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-medium transition-colors"
+            className="w-full pl-12 pr-12 py-4 rounded-2xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-medium transition-colors"
           />
           <Search className="absolute left-4 top-4 text-slate-400 dark:text-slate-500" size={20} />
+          <button 
+            onClick={() => setIsVoiceSearchActive(true)}
+            className="absolute right-4 top-4 text-slate-400 dark:text-slate-500 hover:text-teal-600 dark:hover:text-teal-400"
+            aria-label="Search by voice"
+          >
+            <Mic size={20} />
+          </button>
         </div>
       </div>
 
@@ -115,6 +132,13 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onSearch }) => {
             ))}
         </div>
       </div>
+
+      {/* Voice Search Overlay */}
+      <VoiceSearchOverlay 
+        isOpen={isVoiceSearchActive} 
+        onClose={() => setIsVoiceSearchActive(false)} 
+        onTranscript={handleVoiceSearchComplete} 
+      />
     </div>
   );
 };
