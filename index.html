@@ -55,6 +55,8 @@
     <!-- Google Maps JavaScript API -->
     <!-- You will need to obtain your Google Maps API Key and replace 'YOUR_GOOGLE_MAPS_API_KEY' -->
     <!-- Ensure the Maps JavaScript API is enabled in your Google Cloud Project. -->
-    <script async defer src={`https://maps.googleapis.com/maps/api/js?key=${process.env.GOOGLE_MAPS_API_KEY || 'YOUR_GOOGLE_MAPS_API_KEY'}&loading=async`}></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&loading=async"></script>
+    <!-- Note: In a real environment, `process.env.GOOGLE_MAPS_API_KEY` would be replaced by your build tool. -->
+    <!-- For local development, manually replace 'YOUR_GOOGLE_MAPS_API_KEY' with your actual key if needed. -->
   </body>
 </html>

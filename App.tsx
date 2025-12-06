@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null); // New state for user's geolocation
 
   // Initialize theme and data
   useEffect(() => {
@@ -47,6 +48,24 @@ const App: React.FC = () => {
 
     // Load initial data (Simulating Firestore subscription)
     loadSavedPlaces();
+
+    // Get user's geolocation
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        (error) => {
+          // Log specific error details for better debugging
+          console.error("Error getting geolocation:", error.message, "Code:", error.code);
+          // Optionally set a default location or handle the error
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    }
   }, []);
 
   const loadSavedPlaces = async () => {
@@ -121,6 +140,7 @@ const App: React.FC = () => {
                 onSavePlace={handleSavePlace}
                 tripSelection={tripSelection}
                 onToggleTripSelection={toggleTripSelection}
+                userLocation={userLocation} // Pass user location
             />
         );
       case 'details':
@@ -132,7 +152,7 @@ const App: React.FC = () => {
             onSave={handleSavePlace}
             isSaved={savedPlaces.some(p => p.id === selectedPlace.id)}
           />
-        ) : <Discover onSelectPlace={handlePlaceSelect} searchTerm={searchTerm} onSearch={handleSearch} tripSelection={tripSelection} onToggleTripSelection={toggleTripSelection} />;
+        ) : <Discover onSelectPlace={handlePlaceSelect} searchTerm={searchTerm} onSearch={handleSearch} tripSelection={tripSelection} onToggleTripSelection={toggleTripSelection} userLocation={userLocation} />;
       case 'itinerary':
         return (
             <Itinerary 

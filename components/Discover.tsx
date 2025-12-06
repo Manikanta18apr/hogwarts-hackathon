@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Place } from '../types';
-import { Filter, Star, MapPin, X, Search, Loader, Heart, Plus, Check } from 'lucide-react';
+import { Filter, Star, MapPin, X, Search, Loader, Heart, Plus, Check, Link } from 'lucide-react'; // Added Link icon
 import { discoverPlaces } from '../services/geminiService';
 
 interface DiscoverProps {
@@ -10,6 +10,7 @@ interface DiscoverProps {
   onSavePlace?: (place: Place) => void;
   tripSelection?: Place[];
   onToggleTripSelection?: (place: Place) => void;
+  userLocation?: { latitude: number; longitude: number } | null; // New prop for user's location
 }
 
 const mockPlaces: Place[] = [
@@ -73,11 +74,13 @@ const Discover: React.FC<DiscoverProps> = ({
   onSearch, 
   onSavePlace,
   tripSelection = [],
-  onToggleTripSelection
+  onToggleTripSelection,
+  userLocation, // Added userLocation prop
 }) => {
   const [activeFilter, setActiveFilter] = useState('All');
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
   const [results, setResults] = useState<Place[]>(mockPlaces);
+  const [groundingSources, setGroundingSources] = useState<any[]>([]); // New state for grounding sources
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -86,106 +89,70 @@ const Discover: React.FC<DiscoverProps> = ({
 
   useEffect(() => {
     const fetchPlaces = async () => {
-      if (!searchTerm || searchTerm.trim() === '') {
+      if (!localSearchTerm || localSearchTerm.trim() === '') {
         setResults(mockPlaces);
+        setGroundingSources([]);
         return;
       }
 
       setIsLoading(true);
       try {
-        const aiResults = await discoverPlaces(searchTerm);
-        if (aiResults && aiResults.length > 0) {
-          setResults(aiResults);
-        } else {
-          setResults([]); 
-        }
+        const { places, groundingSources: newGroundingSources } = await discoverPlaces(localSearchTerm, userLocation);
+        setResults(places);
+        setGroundingSources(newGroundingSources);
       } catch (error) {
-        console.error("Search failed", error);
-        setResults(mockPlaces);
+        console.error("Failed to fetch places:", error);
+        setResults([]);
+        setGroundingSources([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    const timer = setTimeout(() => {
-        fetchPlaces();
-    }, 500);
+    fetchPlaces();
+  }, [localSearchTerm, userLocation]); // Rerun when localSearchTerm or userLocation changes
 
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-  
-  const filters = ['All', 'Distance', 'Budget', 'Popular', 'Hidden'];
+  const filters = ['All', 'Food', 'Culture', 'Nature', 'Nightlife', 'Hidden Gems'];
 
-  const filteredPlaces = results.filter(place => {
-    let matchesFilter = true;
-    if (activeFilter === 'Popular') matchesFilter = place.rating >= 4.8;
-    if (activeFilter === 'Budget') matchesFilter = place.cost === '$' || place.cost === 'Free';
-    if (activeFilter === 'Hidden') matchesFilter = !!place.hiddenGemReason;
-    return matchesFilter;
-  });
-
-  const handleSearchSubmit = () => {
-      if (onSearch) {
-          onSearch(localSearchTerm);
-      }
-  };
-
-  const handleSave = (e: React.MouseEvent, place: Place) => {
-      e.stopPropagation();
-      if(onSavePlace) onSavePlace(place);
-  };
-
-  const handleToggleTrip = (e: React.MouseEvent, place: Place) => {
-      e.stopPropagation();
-      if(onToggleTripSelection) onToggleTripSelection(place);
-  }
+  const filteredResults = activeFilter === 'All'
+    ? results
+    : results.filter(place => 
+        place.tags.some(tag => tag === activeFilter) || 
+        (activeFilter === 'Hidden Gems' && place.hiddenGemReason)
+      );
 
   return (
-    <div className="pb-24 pt-4 px-4 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
-      {/* Search Header */}
-      <div className="flex space-x-3 mb-6">
-        <div className="flex-1 relative">
-            <input 
-                type="text" 
-                value={localSearchTerm}
-                onChange={(e) => setLocalSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
-                placeholder="Search places..."
-                className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-            />
-            <button 
-                onClick={handleSearchSubmit}
-                className="absolute left-3 top-3.5 text-slate-400 dark:text-slate-500 hover:text-teal-600 dark:hover:text-teal-400"
-            >
-                <Search size={18} />
-            </button>
-            {localSearchTerm && (
-                <button 
-                    onClick={() => {
-                        setLocalSearchTerm('');
-                        if (onSearch) onSearch('');
-                    }}
-                    className="absolute right-3 top-3.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
-                >
-                    <X size={18} />
-                </button>
-            )}
-        </div>
-        <button className="p-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400">
+    <div className="pb-24 pt-8 px-4 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Discover</h2>
+        <button className="p-2 bg-white dark:bg-slate-900 rounded-full shadow-sm text-slate-500 dark:text-slate-400">
           <Filter size={20} />
         </button>
       </div>
 
-      {/* Filters (Horizontal Scroll) */}
-      <div className="flex space-x-3 overflow-x-auto no-scrollbar mb-6 pb-2">
+      {/* Search Input */}
+      <div className="relative shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl mb-6">
+        <input
+          type="text"
+          value={localSearchTerm}
+          onChange={(e) => setLocalSearchTerm(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && onSearch && onSearch(localSearchTerm)}
+          placeholder="Search places or activities"
+          className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-medium transition-colors"
+        />
+        <Search className="absolute left-4 top-4 text-slate-400 dark:text-slate-500" size={20} />
+      </div>
+
+      {/* Filters */}
+      <div className="flex space-x-3 overflow-x-auto no-scrollbar mb-6">
         {filters.map(filter => (
           <button
             key={filter}
             onClick={() => setActiveFilter(filter)}
-            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap ${
               activeFilter === filter
-                ? 'bg-teal-600 text-white shadow-md'
-                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
+                ? 'bg-teal-600 text-white shadow-md shadow-teal-200 dark:shadow-teal-900/30'
+                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-800'
             }`}
           >
             {filter}
@@ -193,101 +160,108 @@ const Discover: React.FC<DiscoverProps> = ({
         ))}
       </div>
 
-      {/* Loading State */}
       {isLoading && (
-          <div className="flex flex-col items-center justify-center py-12">
-              <Loader className="animate-spin text-teal-600 dark:text-teal-400 mb-4" size={32} />
-              <p className="text-slate-500 dark:text-slate-400 font-medium">Finding the best spots for you...</p>
-          </div>
-      )}
-
-      {/* Cards List */}
-      {!isLoading && (
-        <div className="space-y-6">
-            {filteredPlaces.length > 0 ? (
-                filteredPlaces.map((place) => {
-                  const isSelected = tripSelection.some(p => p.id === place.id);
-                  return (
-                    <div 
-                        key={place.id}
-                        onClick={() => onSelectPlace(place)}
-                        className={`bg-white dark:bg-slate-900 rounded-3xl shadow-md overflow-hidden cursor-pointer active:scale-95 transition-all border relative group ${isSelected ? 'border-teal-500 ring-2 ring-teal-500/20' : 'border-slate-100 dark:border-slate-800'}`}
-                    >
-                        <div className="h-48 relative">
-                            <img src={place.image} alt={place.title} className="w-full h-full object-cover" />
-                            <div className="absolute top-4 right-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center shadow-sm">
-                                <Star size={14} className="text-yellow-500 fill-yellow-500 mr-1" />
-                                <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{place.rating}</span>
-                            </div>
-                            
-                            {/* Trip Selection Toggle */}
-                            <button 
-                                onClick={(e) => handleToggleTrip(e, place)}
-                                className={`absolute top-4 right-16 p-2 backdrop-blur-md rounded-full text-white transition-colors shadow-sm z-20 ${isSelected ? 'bg-teal-500 hover:bg-teal-600' : 'bg-black/30 hover:bg-black/50'}`}
-                            >
-                                {isSelected ? <Check size={18} /> : <Plus size={18} />}
-                            </button>
-
-                            {/* Quick Save Button Overlay */}
-                            <button 
-                                onClick={(e) => handleSave(e, place)}
-                                className="absolute top-4 left-4 p-2 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/40 transition-colors opacity-0 group-hover:opacity-100"
-                            >
-                                <Heart size={18} />
-                            </button>
-                        </div>
-                        <div className="p-5">
-                            <div className="flex justify-between items-start mb-2">
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">{place.title}</h3>
-                                <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{place.cost}</span>
-                            </div>
-                            <div className="flex items-center text-slate-400 dark:text-slate-500 mb-3 text-sm">
-                                <MapPin size={14} className="mr-1" />
-                                <span>{place.coordinates ? 'Nearby' : 'Location TBD'}</span>
-                            </div>
-                            <div className="flex flex-wrap gap-2 mb-3">
-                                {place.tags && place.tags.map(tag => (
-                                <span key={tag} className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs rounded-md">
-                                    {tag}
-                                </span>
-                                ))}
-                            </div>
-                            <button className="w-full py-2 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 font-semibold rounded-xl text-sm hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-colors">
-                                View Details
-                            </button>
-                        </div>
-                    </div>
-                  );
-                })
-            ) : (
-                <div className="text-center py-10">
-                    <div className="bg-slate-100 dark:bg-slate-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400 dark:text-slate-500">
-                        <Search size={32} />
-                    </div>
-                    <p className="text-slate-500 dark:text-slate-400 font-medium">No places found matching "{searchTerm}".</p>
-                    <button 
-                        onClick={() => { 
-                            setActiveFilter('All'); 
-                            setLocalSearchTerm(''); 
-                            if(onSearch) onSearch(''); 
-                        }} 
-                        className="mt-4 text-teal-600 dark:text-teal-400 font-bold text-sm hover:underline"
-                    >
-                        Clear Search & Filters
-                    </button>
-                </div>
-            )}
+        <div className="flex items-center justify-center py-10 text-teal-600 dark:text-teal-400">
+          <Loader className="animate-spin mr-2" size={24} /> Loading amazing places...
         </div>
       )}
-      
-      {/* Floating Selection Indicator */}
-      {tripSelection.length > 0 && (
-          <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-slate-900 dark:bg-indigo-600 text-white px-6 py-3 rounded-full shadow-xl z-50 flex items-center gap-3 animate-slide-up">
-              <span className="font-bold">{tripSelection.length} selected</span>
-              <div className="h-4 w-[1px] bg-white/30"></div>
-              <span className="text-sm">Go to map icon to route</span>
-          </div>
+
+      {!isLoading && filteredResults.length === 0 && (
+        <div className="text-center py-10 text-slate-500 dark:text-slate-400">
+          No places found for your search/filters.
+        </div>
       )}
+
+      {/* Grounding Sources */}
+      {groundingSources.length > 0 && (
+        <div className="mb-6 bg-slate-100 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+          <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-3 flex items-center">
+            <Link size={16} className="mr-2 text-teal-600 dark:text-teal-400" />
+            Sources
+          </h3>
+          <div className="space-y-2">
+            {groundingSources.map((source, index) => {
+              if (source.web?.uri) {
+                return (
+                  <a key={`web-${index}`} href={source.web.uri} target="_blank" rel="noopener noreferrer" className="block text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                    {source.web.title || source.web.uri}
+                  </a>
+                );
+              }
+              if (source.maps?.uri) {
+                return (
+                  <a key={`maps-${index}`} href={source.maps.uri} target="_blank" rel="noopener noreferrer" className="block text-sm text-green-600 dark:text-green-400 hover:underline">
+                    {source.maps.title || source.maps.uri}
+                  </a>
+                );
+              }
+              return null;
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Place Cards */}
+      <div className="space-y-4">
+        {filteredResults.map(place => {
+          const isSelectedForTrip = tripSelection.some(p => p.id === place.id);
+          return (
+            <div
+              key={place.id}
+              className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden"
+            >
+              <div className="relative h-48 cursor-pointer" onClick={() => onSelectPlace(place)}>
+                <img src={place.image} alt={place.title} className="w-full h-full object-cover" />
+                <div className="absolute top-3 right-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur px-2 py-1 rounded-lg flex items-center shadow-sm">
+                  <Star size={12} className="text-yellow-500 fill-yellow-500 mr-1" />
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{place.rating.toFixed(1)}</span>
+                </div>
+              </div>
+              <div className="p-4">
+                <h3 className="font-bold text-xl text-slate-800 dark:text-white mb-1">{place.title}</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mb-3">{place.description}</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {place.tags.map(tag => (
+                    <span key={tag} className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full text-xs font-semibold">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center text-sm text-slate-600 dark:text-slate-300">
+                    <MapPin size={16} className="mr-1.5 text-slate-400 dark:text-slate-500" />
+                    <span>{place.cost} • {place.bestTime}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    {onSavePlace && (
+                        <button 
+                            onClick={() => onSavePlace(place)}
+                            className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                            title="Save Place"
+                        >
+                            <Heart size={18} />
+                        </button>
+                    )}
+                    {onToggleTripSelection && (
+                        <button 
+                            onClick={() => onToggleTripSelection(place)}
+                            className={`p-2 rounded-full transition-colors ${
+                                isSelectedForTrip 
+                                ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400' 
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                            }`}
+                            title={isSelectedForTrip ? "Remove from Trip" : "Add to Trip"}
+                        >
+                            {isSelectedForTrip ? <Check size={18} /> : <Plus size={18} />}
+                        </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

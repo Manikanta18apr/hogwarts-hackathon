@@ -182,88 +182,130 @@ export const generateAIItinerary = async (
 };
 
 export const discoverPlaces = async (
-  query: string
-): Promise<Place[]> => {
-    if (!query) return [];
+  query: string,
+  userLatLng?: { latitude: number; longitude: number } // Added optional user location
+): Promise<{ places: Place[], groundingSources: any[] }> => { // Changed return type
+    if (!query) return { places: [], groundingSources: [] };
 
     if (!hasKey) {
-        return [
-            {
-                id: 'mock-1',
-                title: `Mock Place for ${query}`,
-                description: `This is a simulated result for "${query}" because no API key was provided.`,
-                image: 'https://picsum.photos/500/300?grayscale',
-                tags: ['Mock', 'Demo'],
-                rating: 4.5,
-                reviews: 100,
-                cost: '$$',
-                bestTime: 'Anytime',
-                coordinates: { lat: 0, lng: 0 },
-                hiddenGemReason: 'Simulated data'
-            }
-        ];
+        return {
+            places: [
+                {
+                    id: 'mock-1',
+                    title: `Mock Place for ${query}`,
+                    description: `This is a simulated result for "${query}" because no API key was provided.`,
+                    image: 'https://picsum.photos/500/300?grayscale',
+                    tags: ['Mock', 'Demo'],
+                    rating: 4.5,
+                    reviews: 100,
+                    cost: '$$',
+                    bestTime: 'Anytime',
+                    coordinates: { lat: 0, lng: 0 },
+                    hiddenGemReason: 'Simulated data'
+                }
+            ],
+            groundingSources: []
+        };
     }
 
-    const prompt = `Recommend 5 distinct travel destinations, restaurants, spots, or hidden gems based on this search query: "${query}".
-    Return a JSON array where each item has the following structure:
-    - title (string)
-    - description (string)
-    - tags (array of strings, max 3)
-    - rating (number 1.0-5.0)
-    - reviews (number integer)
-    - cost (string e.g. "$", "Free")
-    - bestTime (string)
-    - hiddenGemReason (string, optional)
-    - coordinates (object with lat and lng numbers)
+    // Step 1: Use Maps Grounding to get raw text and grounding chunks
+    const firstPrompt = `Find 5 distinct and interesting travel destinations, restaurants, spots, or hidden gems based on this search query: "${query}".
+    Provide a brief description for each.
     `;
 
-     try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING },
-              description: { type: Type.STRING },
-              tags: { type: Type.ARRAY, items: { type: Type.STRING } },
-              rating: { type: Type.NUMBER },
-              reviews: { type: Type.INTEGER },
-              cost: { type: Type.STRING },
-              bestTime: { type: Type.STRING },
-              hiddenGemReason: { type: Type.STRING },
-              coordinates: { 
-                  type: Type.OBJECT, 
-                  properties: { 
-                      lat: { type: Type.NUMBER }, 
-                      lng: { type: Type.NUMBER } 
-                    } 
-                }
+    try {
+        const firstResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: firstPrompt,
+            config: {
+                tools: [{ googleMaps: {} }],
+                // Optionally add user's current location for more relevant results
+                toolConfig: userLatLng ? { retrievalConfig: { latLng: userLatLng } } : undefined,
             },
-            required: ["title", "description", "tags", "rating", "cost"],
-          },
-        },
-      },
-    });
+        });
 
-     if (response.text) {
-      const data = JSON.parse(response.text);
-      return data.map((item: any, index: number) => ({
-          ...item,
-          id: `ai-${Date.now()}-${index}`,
-          image: `https://picsum.photos/500/300?random=${index + Math.floor(Math.random() * 100)}`
-      }));
+        const rawTextFromMapsGrounding = firstResponse.text || "";
+        const groundingChunks = firstResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+
+        // Step 2: Parse the raw text into structured JSON using a separate AI call
+        const secondPrompt = `Given the following text, extract details for up to 5 places into a JSON array.
+        For each place, include:
+        - title (string)
+        - description (string)
+        - tags (array of strings, max 3) - infer from description or query if not explicit
+        - rating (number 1.0-5.0) - infer if not explicit (default to 4.0 if no hint)
+        - reviews (number integer) - infer if not explicit (default to 50 if no hint)
+        - cost (string e.g. "$", "Free") - infer if not explicit (default to '$$')
+        - bestTime (string) - infer if not explicit (default to 'Daytime')
+        - hiddenGemReason (string, optional)
+        - coordinates (object with lat and lng numbers) - crucial, extract if possible, otherwise provide placeholder { lat: 0, lng: 0 }
+        
+        Text to parse:
+        ${rawTextFromMapsGrounding}
+        `;
+
+        const secondResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: secondPrompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            title: { type: Type.STRING },
+                            description: { type: Type.STRING },
+                            tags: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            rating: { type: Type.NUMBER },
+                            reviews: { type: Type.INTEGER },
+                            cost: { type: Type.STRING },
+                            bestTime: { type: Type.STRING },
+                            hiddenGemReason: { type: Type.STRING },
+                            coordinates: { 
+                                type: Type.OBJECT, 
+                                properties: { 
+                                    lat: { type: Type.NUMBER }, 
+                                    lng: { type: Type.NUMBER } 
+                                },
+                                required: ["lat", "lng"]
+                            }
+                        },
+                        required: ["title", "description", "tags", "rating", "reviews", "cost", "bestTime", "coordinates"],
+                    },
+                },
+            },
+        });
+
+        let jsonString = secondResponse.text?.trim() || "";
+        // Defensive cleanup: remove markdown code block fences if present
+        jsonString = jsonString.replace(/```json/g, "").replace(/```/g, "").trim();
+
+        try {
+            const data = JSON.parse(jsonString);
+            // Validate that data is an array before mapping
+            if (!Array.isArray(data)) {
+                console.error("Gemini response for structured places was not an array:", data);
+                return { places: [], groundingSources: groundingChunks };
+            }
+            const places: Place[] = data.map((item: any, index: number) => ({
+                ...item,
+                id: `ai-${Date.now()}-${index}`,
+                image: `https://picsum.photos/500/300?random=${index + Math.floor(Math.random() * 100)}`,
+                // Provide default coordinates if somehow missing, though schema should prevent this
+                coordinates: item.coordinates || { lat: 0, lng: 0 }
+            }));
+            return { places, groundingSources: groundingChunks };
+        } catch (parseError) {
+            console.error("JSON Parse Error during second step discoverPlaces:", parseError);
+            console.error("Raw JSON string from second step:", jsonString); // Log raw string for debugging
+            return { places: [], groundingSources: groundingChunks };
+        }
+
+    } catch (e) {
+        console.error("Discover Places API Error (two-step process):", e);
+        return { places: [], groundingSources: [] };
     }
-    return [];
-
-  } catch (e) {
-      console.error("Discover Places Error:", e);
-      return [];
-  }
 }
 
 // Fallback mock data
