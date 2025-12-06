@@ -49,23 +49,47 @@ const App: React.FC = () => {
     // Load initial data (Simulating Firestore subscription)
     loadSavedPlaces();
 
-    // Get user's geolocation
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          });
-        },
-        (error) => {
-          // Log specific error details for better debugging
-          console.error("Error getting geolocation:", error.message, "Code:", error.code);
-          // Optionally set a default location or handle the error
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-      );
-    }
+    const getUserLocation = () => {
+      if (navigator.geolocation) {
+        // First attempt: High accuracy with a longer timeout
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setUserLocation({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
+            console.log("Geolocation obtained with high accuracy.");
+          },
+          (error) => {
+            console.warn("Error getting high-accuracy geolocation:", error.message, "Code:", error.code);
+            // If timeout or other error, try with lower accuracy
+            // FIX: Corrected GeolocationPositionError constant access and removed non-standard UNKNOWN_ERROR.
+            if (error.code === GeolocationPositionError.TIMEOUT || error.code === GeolocationPositionError.POSITION_UNAVAILABLE) {
+              console.log("Attempting to get lower-accuracy geolocation.");
+              navigator.geolocation.getCurrentPosition(
+                (position) => {
+                  setUserLocation({
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                  });
+                  console.log("Geolocation obtained with lower accuracy.");
+                },
+                (lowAccuracyError) => {
+                  console.error("Error getting low-accuracy geolocation:", lowAccuracyError.message, "Code:", lowAccuracyError.code);
+                  // Handle permanent geolocation failure (e.g., set default, inform user)
+                },
+                { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 } // Less accurate, longer max age
+              );
+            }
+          },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 } // Longer timeout for high accuracy
+        );
+      } else {
+        console.warn("Geolocation is not supported by this browser.");
+      }
+    };
+
+    getUserLocation();
   }, []);
 
   const loadSavedPlaces = async () => {

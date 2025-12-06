@@ -13,6 +13,7 @@ export interface Place {
   coordinates: { lat: number; lng: number };
   hiddenGemReason?: string;
   address?: string;
+  popularTimes?: { hour: number; crowdPercentage: number }[]; // New: Array for crowd history
 }
 
 export interface SavedPlace extends Place {

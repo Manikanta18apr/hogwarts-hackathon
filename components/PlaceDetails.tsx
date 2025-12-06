@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Place } from '../types';
-import { ArrowLeft, MapPin, Clock, Wallet, CheckCircle, Share2, Navigation, Heart, Star } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Wallet, CheckCircle, Share2, Navigation, Heart, Star, Users } from 'lucide-react'; // Added Users icon for popular times
+
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 interface PlaceDetailsProps {
   place: Place;
@@ -40,6 +46,79 @@ const mockReviews = [
 const PlaceDetails: React.FC<PlaceDetailsProps> = ({ place, onBack, onAddToItinerary, onSave, isSaved = false }) => {
   const [saving, setSaving] = useState(false);
   const [savedLocal, setSavedLocal] = useState(isSaved);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any | null>(null);
+  const markerRef = useRef<any | null>(null);
+  const [mapLoading, setMapLoading] = useState(true);
+
+  useEffect(() => {
+    // Only attempt to load map if coordinates are valid
+    if (!place.coordinates || !place.coordinates.lat || !place.coordinates.lng) {
+      setMapLoading(false); // Indicate map is not available without valid coordinates
+      return;
+    }
+
+    const loadMap = () => {
+      if (mapRef.current && window.google?.maps) {
+        setMapLoading(false);
+        const { lat, lng } = place.coordinates;
+        const center = { lat, lng };
+
+        const mapOptions: any = { // Use 'any' for google.maps types
+          center: center,
+          zoom: 14, // Zoom level, adjust as needed
+          mapTypeControl: false,
+          fullscreenControl: false,
+          streetViewControl: false,
+          zoomControl: true,
+          scaleControl: false,
+        };
+
+        mapInstanceRef.current = new window.google.maps.Map(mapRef.current, mapOptions);
+
+        // Add marker
+        markerRef.current = new window.google.maps.Marker({
+          position: center,
+          map: mapInstanceRef.current,
+          title: place.title,
+          icon: {
+            url: 'data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%230D9488" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin"><path d="M12 1.5l-6 6v10.5l6 6l6-6V7.5l-6-6z"/><circle cx="12" cy="7.5" r="2.5" fill="white"/></svg>',
+            scaledSize: new window.google.maps.Size(32, 32),
+            anchor: new window.google.maps.Point(16, 32)
+          },
+        });
+      } else {
+        // If API not loaded yet, retry
+        const timer = setTimeout(loadMap, 200);
+        return () => clearTimeout(timer);
+      }
+    };
+
+    setMapLoading(true);
+    // Initial check for Google Maps API, then start the loading process
+    if (window.google?.maps) {
+      loadMap();
+    } else {
+      const scriptCheckInterval = setInterval(() => {
+        if (window.google?.maps) {
+          clearInterval(scriptCheckInterval);
+          loadMap();
+        }
+      }, 100);
+      return () => clearInterval(scriptCheckInterval);
+    }
+
+    // Cleanup function
+    return () => {
+      if (markerRef.current) {
+        markerRef.current.setMap(null);
+        markerRef.current = null;
+      }
+      // Google Maps JS API typically handles map instance cleanup if parent element is removed.
+      // Explicitly setting to null might help, but not always strictly necessary.
+      mapInstanceRef.current = null;
+    };
+  }, [place.coordinates]); // Re-run effect if place coordinates change
 
   const handleSave = async () => {
     if (!onSave) return;
@@ -52,6 +131,12 @@ const PlaceDetails: React.FC<PlaceDetailsProps> = ({ place, onBack, onAddToItine
     } finally {
         setSaving(false);
     }
+  };
+
+  const formatHour = (hour: number) => {
+    if (hour === 0) return '12 AM';
+    if (hour === 12) return '12 PM';
+    return `${hour % 12} ${hour < 12 ? 'AM' : 'PM'}`;
   };
 
   return (
@@ -104,6 +189,50 @@ const PlaceDetails: React.FC<PlaceDetailsProps> = ({ place, onBack, onAddToItine
                  <p className="text-indigo-800 dark:text-indigo-300 text-sm leading-relaxed">{place.hiddenGemReason}</p>
                </div>
            </div>
+        )}
+
+        {/* Location Map Section */}
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 mb-8">
+            <h3 className="font-bold text-slate-900 dark:text-white text-xl mb-4 flex items-center">
+                <MapPin size={20} className="mr-2 text-teal-600 dark:text-teal-400" />
+                Location
+            </h3>
+            <div ref={mapRef} className="w-full h-64 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400">
+                {mapLoading ? 'Loading map...' : (!place.coordinates || (!place.coordinates.lat && !place.coordinates.lng)) ? 'Coordinates not available for this place.' : 'Map failed to load.'}
+            </div>
+        </div>
+
+        {/* Popular Times Section */}
+        {place.popularTimes && place.popularTimes.length > 0 && (
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 mb-8">
+            <h3 className="font-bold text-slate-900 dark:text-white text-xl mb-4 flex items-center">
+              <Users size={20} className="mr-2 text-teal-600 dark:text-teal-400" />
+              Popular Times
+            </h3>
+            <div className="grid grid-cols-1 gap-y-2">
+              {place.popularTimes.map((time, index) => (
+                <div key={index} className="flex items-center text-sm">
+                  <span className="w-14 shrink-0 text-slate-500 dark:text-slate-400">{formatHour(time.hour)}</span>
+                  <div className="relative flex-1 h-6 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden ml-3">
+                    <div 
+                      className="absolute h-full rounded-full transition-all duration-300"
+                      style={{ 
+                        width: `${time.crowdPercentage}%`, 
+                        background: `linear-gradient(to right, ${time.crowdPercentage < 30 ? '#A7F3D0' : time.crowdPercentage < 60 ? '#34D399' : '#0D9488'} 0%, ${time.crowdPercentage < 30 ? '#A7F3D0' : time.crowdPercentage < 60 ? '#34D399' : '#0D9488'} 100%)`
+                      }}
+                    ></div>
+                    <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-slate-700 dark:text-slate-200" style={{ color: time.crowdPercentage > 50 ? 'white' : undefined }}>
+                        {time.crowdPercentage}%
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-3 px-2">
+                <span>Less Crowded</span>
+                <span>More Crowded</span>
+            </div>
+          </div>
         )}
 
         <div className="grid grid-cols-2 gap-4 mb-8">

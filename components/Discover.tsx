@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Place } from '../types';
-import { Filter, Star, MapPin, X, Search, Loader, Heart, Plus, Check, Link } from 'lucide-react'; // Added Link icon
+import { Filter, Star, MapPin, X, Search, Loader, Heart, Plus, Check, Link, AlertTriangle, Users } from 'lucide-react'; // Added Users icon
 import { discoverPlaces } from '../services/geminiService';
 
 interface DiscoverProps {
@@ -10,7 +10,7 @@ interface DiscoverProps {
   onSavePlace?: (place: Place) => void;
   tripSelection?: Place[];
   onToggleTripSelection?: (place: Place) => void;
-  userLocation?: { latitude: number; longitude: number } | null; // New prop for user's location
+  userLocation?: { latitude: number; longitude: number } | null; // Added userLocation prop
 }
 
 const mockPlaces: Place[] = [
@@ -25,7 +25,14 @@ const mockPlaces: Place[] = [
     cost: '$$',
     bestTime: 'Weekdays 10 AM',
     coordinates: { lat: 35.6, lng: 139.7 },
-    hiddenGemReason: 'Located behind an old bookstore, invisible from the main street.'
+    hiddenGemReason: 'Located behind an old bookstore, invisible from the main street.',
+    popularTimes: [
+      { hour: 8, crowdPercentage: 10 }, { hour: 9, crowdPercentage: 15 }, { hour: 10, crowdPercentage: 30 },
+      { hour: 11, crowdPercentage: 40 }, { hour: 12, crowdPercentage: 55 }, { hour: 13, crowdPercentage: 60 },
+      { hour: 14, crowdPercentage: 50 }, { hour: 15, crowdPercentage: 35 }, { hour: 16, crowdPercentage: 25 },
+      { hour: 17, crowdPercentage: 20 }, { hour: 18, crowdPercentage: 15 }, { hour: 19, crowdPercentage: 10 },
+      { hour: 20, crowdPercentage: 5 }, { hour: 21, crowdPercentage: 5 }, { hour: 22, crowdPercentage: 5 },
+    ]
   },
   {
     id: '2',
@@ -38,7 +45,14 @@ const mockPlaces: Place[] = [
     cost: '$',
     bestTime: 'Late Night',
     coordinates: { lat: 35.61, lng: 139.72 },
-    hiddenGemReason: 'Popular with local chefs after their shifts.'
+    hiddenGemReason: 'Popular with local chefs after their shifts.',
+    popularTimes: [
+      { hour: 8, crowdPercentage: 5 }, { hour: 9, crowdPercentage: 5 }, { hour: 10, crowdPercentage: 10 },
+      { hour: 11, crowdPercentage: 15 }, { hour: 12, crowdPercentage: 30 }, { hour: 13, crowdPercentage: 40 },
+      { hour: 14, crowdPercentage: 25 }, { hour: 15, crowdPercentage: 15 }, { hour: 16, crowdPercentage: 20 },
+      { hour: 17, crowdPercentage: 40 }, { hour: 18, crowdPercentage: 70 }, { hour: 19, crowdPercentage: 90 },
+      { hour: 20, crowdPercentage: 95 }, { hour: 21, crowdPercentage: 80 }, { hour: 22, crowdPercentage: 60 },
+    ]
   },
   {
     id: '3',
@@ -51,7 +65,14 @@ const mockPlaces: Place[] = [
     cost: 'Free',
     bestTime: 'Early Morning',
     coordinates: { lat: 35.62, lng: 139.71 },
-    hiddenGemReason: 'Omitted from most tourist guidebooks to preserve tranquility.'
+    hiddenGemReason: 'Omitted from most tourist guidebooks to preserve tranquility.',
+    popularTimes: [
+      { hour: 8, crowdPercentage: 20 }, { hour: 9, crowdPercentage: 25 }, { hour: 10, crowdPercentage: 20 },
+      { hour: 11, crowdPercentage: 15 }, { hour: 12, crowdPercentage: 10 }, { hour: 13, crowdPercentage: 10 },
+      { hour: 14, crowdPercentage: 10 }, { hour: 15, crowdPercentage: 10 }, { hour: 16, crowdPercentage: 10 },
+      { hour: 17, crowdPercentage: 10 }, { hour: 18, crowdPercentage: 5 }, { hour: 19, crowdPercentage: 5 },
+      { hour: 20, crowdPercentage: 5 }, { hour: 21, crowdPercentage: 5 }, { hour: 22, crowdPercentage: 5 },
+    ]
   },
     {
     id: '4',
@@ -64,7 +85,14 @@ const mockPlaces: Place[] = [
     cost: '$$$',
     bestTime: 'Sunset',
     coordinates: { lat: 35.63, lng: 139.73 },
-    hiddenGemReason: 'Entrance is through a vending machine door.'
+    hiddenGemReason: 'Entrance is through a vending machine door.',
+    popularTimes: [
+      { hour: 8, crowdPercentage: 5 }, { hour: 9, crowdPercentage: 5 }, { hour: 10, crowdPercentage: 5 },
+      { hour: 11, crowdPercentage: 5 }, { hour: 12, crowdPercentage: 10 }, { hour: 13, crowdPercentage: 10 },
+      { hour: 14, crowdPercentage: 10 }, { hour: 15, crowdPercentage: 15 }, { hour: 16, crowdPercentage: 20 },
+      { hour: 17, crowdPercentage: 30 }, { hour: 18, crowdPercentage: 50 }, { hour: 19, crowdPercentage: 70 },
+      { hour: 20, crowdPercentage: 85 }, { hour: 21, crowdPercentage: 90 }, { hour: 22, crowdPercentage: 75 },
+    ]
   }
 ];
 
@@ -82,6 +110,7 @@ const Discover: React.FC<DiscoverProps> = ({
   const [results, setResults] = useState<Place[]>(mockPlaces);
   const [groundingSources, setGroundingSources] = useState<any[]>([]); // New state for grounding sources
   const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null); // New state for API errors
 
   useEffect(() => {
     setLocalSearchTerm(searchTerm);
@@ -92,16 +121,24 @@ const Discover: React.FC<DiscoverProps> = ({
       if (!localSearchTerm || localSearchTerm.trim() === '') {
         setResults(mockPlaces);
         setGroundingSources([]);
+        setApiError(null); // Clear error when no search term
         return;
       }
 
       setIsLoading(true);
+      setApiError(null); // Clear previous errors on new search
       try {
-        const { places, groundingSources: newGroundingSources } = await discoverPlaces(localSearchTerm, userLocation);
-        setResults(places);
-        setGroundingSources(newGroundingSources);
+        const { places, groundingSources: newGroundingSources, errorMessage } = await discoverPlaces(localSearchTerm, userLocation);
+        if (errorMessage) {
+          setApiError(errorMessage);
+          setResults([]); // Clear results on error
+        } else {
+          setResults(places);
+          setGroundingSources(newGroundingSources);
+        }
       } catch (error) {
         console.error("Failed to fetch places:", error);
+        setApiError("An unexpected client-side error occurred.");
         setResults([]);
         setGroundingSources([]);
       } finally {
@@ -120,6 +157,12 @@ const Discover: React.FC<DiscoverProps> = ({
         place.tags.some(tag => tag === activeFilter) || 
         (activeFilter === 'Hidden Gems' && place.hiddenGemReason)
       );
+
+  const formatHour = (hour: number) => {
+    if (hour === 0) return '12 AM';
+    if (hour === 12) return '12 PM';
+    return `${hour % 12} ${hour < 12 ? 'AM' : 'PM'}`;
+  };
 
   return (
     <div className="pb-24 pt-8 px-4 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
@@ -142,6 +185,17 @@ const Discover: React.FC<DiscoverProps> = ({
         />
         <Search className="absolute left-4 top-4 text-slate-400 dark:text-slate-500" size={20} />
       </div>
+
+      {/* API Error Message */}
+      {apiError && (
+        <div className="bg-rose-100 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 p-4 rounded-xl flex items-start mb-6 text-sm">
+          <AlertTriangle size={20} className="mr-3 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold mb-1">Error fetching data:</p>
+            <p className="leading-relaxed">{apiError}</p>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex space-x-3 overflow-x-auto no-scrollbar mb-6">
@@ -166,7 +220,7 @@ const Discover: React.FC<DiscoverProps> = ({
         </div>
       )}
 
-      {!isLoading && filteredResults.length === 0 && (
+      {!isLoading && filteredResults.length === 0 && !apiError && ( // Only show "No places found" if no API error
         <div className="text-center py-10 text-slate-500 dark:text-slate-400">
           No places found for your search/filters.
         </div>
@@ -227,7 +281,42 @@ const Discover: React.FC<DiscoverProps> = ({
                     </span>
                   ))}
                 </div>
-                <div className="flex justify-between items-center">
+
+                {/* Popular Times Section */}
+                {place.popularTimes && place.popularTimes.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <h4 className="font-bold text-slate-800 dark:text-white text-sm mb-3 flex items-center">
+                      <Users size={16} className="mr-2 text-teal-600 dark:text-teal-400" />
+                      Popular Times Today
+                    </h4>
+                    <div className="grid grid-cols-1 gap-y-1.5 text-xs">
+                      {place.popularTimes.map((time, idx) => (
+                        <div key={idx} className="flex items-center">
+                          <span className="w-12 shrink-0 text-slate-500 dark:text-slate-400 font-medium">{formatHour(time.hour)}</span>
+                          <div className="relative flex-1 h-4 bg-slate-100 dark:bg-slate-800 rounded-full ml-2 overflow-hidden">
+                            <div 
+                              className="absolute h-full rounded-full transition-all duration-300"
+                              style={{ 
+                                width: `${time.crowdPercentage}%`, 
+                                background: `linear-gradient(to right, ${time.crowdPercentage < 30 ? '#A7F3D0' : time.crowdPercentage < 60 ? '#34D399' : '#0D9488'} 0%, ${time.crowdPercentage < 30 ? '#A7F3D0' : time.crowdPercentage < 60 ? '#34D399' : '#0D9488'} 100%)`
+                              }}
+                            ></div>
+                            <span className="absolute inset-0 flex items-center justify-center font-semibold text-slate-700 dark:text-slate-200" style={{ color: time.crowdPercentage > 50 ? 'white' : undefined }}>
+                              {time.crowdPercentage}%
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-2 px-2">
+                        <span>Less Crowded</span>
+                        <span>More Crowded</span>
+                    </div>
+                  </div>
+                )}
+
+
+                <div className="flex justify-between items-center mt-4"> {/* Added mt-4 for spacing */}
                   <div className="flex items-center text-sm text-slate-600 dark:text-slate-300">
                     <MapPin size={16} className="mr-1.5 text-slate-400 dark:text-slate-500" />
                     <span>{place.cost} • {place.bestTime}</span>

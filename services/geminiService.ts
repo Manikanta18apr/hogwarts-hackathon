@@ -7,6 +7,26 @@ const ai = new GoogleGenAI({ apiKey });
 // Helper to check if API key is present (mocking behavior if not)
 const hasKey = !!apiKey;
 
+// Helper to generate mock popular times for fallback
+const generateMockPopularTimes = (): { hour: number; crowdPercentage: number }[] => {
+    const times = [];
+    for (let h = 8; h <= 22; h++) { // From 8 AM to 10 PM
+        let crowd = 0;
+        if (h >= 12 && h < 14) { // Lunch peak
+            crowd = Math.floor(Math.random() * (90 - 60 + 1)) + 60;
+        } else if (h >= 18 && h < 21) { // Evening peak
+            crowd = Math.floor(Math.random() * (85 - 50 + 1)) + 50;
+        } else if (h >= 10 && h < 12 || h >= 14 && h < 18) { // Mid-day/afternoon
+            crowd = Math.floor(Math.random() * (50 - 20 + 1)) + 20;
+        } else { // Early morning/late evening
+            crowd = Math.floor(Math.random() * (20 - 5 + 1)) + 5;
+        }
+        times.push({ hour: h, crowdPercentage: crowd });
+    }
+    return times;
+};
+
+
 export const transcribeAudio = async (base64Data: string, mimeType: string): Promise<string> => {
   if (!hasKey) return "Mock: Search for Kyoto";
 
@@ -184,8 +204,8 @@ export const generateAIItinerary = async (
 export const discoverPlaces = async (
   query: string,
   userLatLng?: { latitude: number; longitude: number } // Added optional user location
-): Promise<{ places: Place[], groundingSources: any[] }> => { // Changed return type
-    if (!query) return { places: [], groundingSources: [] };
+): Promise<{ places: Place[], groundingSources: any[], errorMessage: string | null }> => { // Changed return type to include errorMessage
+    if (!query) return { places: [], groundingSources: [], errorMessage: null };
 
     if (!hasKey) {
         return {
@@ -201,16 +221,19 @@ export const discoverPlaces = async (
                     cost: '$$',
                     bestTime: 'Anytime',
                     coordinates: { lat: 0, lng: 0 },
-                    hiddenGemReason: 'Simulated data'
+                    hiddenGemReason: 'Simulated data',
+                    popularTimes: generateMockPopularTimes() // Mock popular times
                 }
             ],
-            groundingSources: []
+            groundingSources: [],
+            errorMessage: "API Key not configured. Using mock data. Please set process.env.API_KEY."
         };
     }
 
     // Step 1: Use Maps Grounding to get raw text and grounding chunks
     const firstPrompt = `Find 5 distinct and interesting travel destinations, restaurants, spots, or hidden gems based on this search query: "${query}".
     Provide a brief description for each.
+    Also, for each place, try to infer and include its typical popular times throughout the day, representing crowd levels as a percentage (0-100) for each hour from 8 AM to 10 PM (22:00).
     `;
 
     try {
@@ -239,6 +262,7 @@ export const discoverPlaces = async (
         - bestTime (string) - infer if not explicit (default to 'Daytime')
         - hiddenGemReason (string, optional)
         - coordinates (object with lat and lng numbers) - crucial, extract if possible, otherwise provide placeholder { lat: 0, lng: 0 }
+        - popularTimes (array of objects, each with 'hour' (number 0-23) and 'crowdPercentage' (number 0-100)). Provide a realistic 8 AM to 10 PM (22:00) schedule, even if estimated.
         
         Text to parse:
         ${rawTextFromMapsGrounding}
@@ -269,6 +293,17 @@ export const discoverPlaces = async (
                                     lng: { type: Type.NUMBER } 
                                 },
                                 required: ["lat", "lng"]
+                            },
+                            popularTimes: { // Added popularTimes to schema
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        hour: { type: Type.INTEGER },
+                                        crowdPercentage: { type: Type.INTEGER }
+                                    },
+                                    required: ["hour", "crowdPercentage"]
+                                }
                             }
                         },
                         required: ["title", "description", "tags", "rating", "reviews", "cost", "bestTime", "coordinates"],
@@ -286,25 +321,37 @@ export const discoverPlaces = async (
             // Validate that data is an array before mapping
             if (!Array.isArray(data)) {
                 console.error("Gemini response for structured places was not an array:", data);
-                return { places: [], groundingSources: groundingChunks };
+                return { places: [], groundingSources: groundingChunks, errorMessage: "Unexpected API response format." };
             }
             const places: Place[] = data.map((item: any, index: number) => ({
                 ...item,
                 id: `ai-${Date.now()}-${index}`,
                 image: `https://picsum.photos/500/300?random=${index + Math.floor(Math.random() * 100)}`,
                 // Provide default coordinates if somehow missing, though schema should prevent this
-                coordinates: item.coordinates || { lat: 0, lng: 0 }
+                coordinates: item.coordinates || { lat: 0, lng: 0 },
+                // Fallback for popularTimes if AI did not provide it or it's malformed
+                popularTimes: Array.isArray(item.popularTimes) && item.popularTimes.every((pt: any) => typeof pt.hour === 'number' && typeof pt.crowdPercentage === 'number')
+                                ? item.popularTimes
+                                : generateMockPopularTimes()
             }));
-            return { places, groundingSources: groundingChunks };
+            return { places, groundingSources: groundingChunks, errorMessage: null };
         } catch (parseError) {
             console.error("JSON Parse Error during second step discoverPlaces:", parseError);
             console.error("Raw JSON string from second step:", jsonString); // Log raw string for debugging
-            return { places: [], groundingSources: groundingChunks };
+            return { places: [], groundingSources: groundingChunks, errorMessage: "Could not parse AI's response into valid place data." };
         }
 
-    } catch (e) {
+    } catch (e: any) { // Catch all errors, including API errors
         console.error("Discover Places API Error (two-step process):", e);
-        return { places: [], groundingSources: [] };
+        let userMessage = "An unknown error occurred while fetching places.";
+        if (e.message && e.message.includes("RESOURCE_EXHAUSTED")) {
+            userMessage = "API Quota Exceeded. Please check your Google Cloud Project for billing and usage. For more details: https://ai.google.dev/gemini-api/docs/rate-limits";
+        } else if (e.message && e.message.includes("API_KEY_INVALID")) {
+            userMessage = "Invalid API Key. Please ensure your API key is correct and properly configured.";
+        } else if (e.message) {
+            userMessage = `API Error: ${e.message}`;
+        }
+        return { places: [], groundingSources: [], errorMessage: userMessage };
     }
 }
 
