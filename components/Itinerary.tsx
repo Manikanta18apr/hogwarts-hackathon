@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ItineraryItem, Place } from '../types';
-import { Sparkles, Save, Clock, MapPin, Zap, ArrowLeft, Star, Trash2, Navigation } from 'lucide-react';
+import { Sparkles, Save, Clock, MapPin, Zap, ArrowLeft, Star, Trash2, Navigation, Map as MapIcon, List, X } from 'lucide-react';
 import { generateAIItinerary, optimizeRoute } from '../services/geminiService';
+import RouteMapGoogle from './RouteMapGoogle'; // New component import
 
 interface ItineraryProps {
   items: ItineraryItem[];
@@ -21,6 +22,7 @@ const Itinerary: React.FC<ItineraryProps> = ({
   const [loading, setLoading] = useState(false);
   const [location, setLocation] = useState('Kyoto'); 
   const [activeTab, setActiveTab] = useState<'custom' | 'generate'>(tripSelection.length > 0 ? 'custom' : 'generate');
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
 
   // If selection changes, default to custom view
   useEffect(() => {
@@ -39,6 +41,7 @@ const Itinerary: React.FC<ItineraryProps> = ({
     }));
     setItems(richItinerary);
     setLoading(false);
+    setViewMode('list');
   };
 
   const handleOptimizeRoute = async () => {
@@ -47,6 +50,7 @@ const Itinerary: React.FC<ItineraryProps> = ({
       const optimizedItems = await optimizeRoute(tripSelection);
       setItems(optimizedItems);
       setLoading(false);
+      setViewMode('map'); // Switch to map view after optimization
   };
 
   const handleRemoveFromTrip = (id: string) => {
@@ -57,8 +61,8 @@ const Itinerary: React.FC<ItineraryProps> = ({
 
   const sections = ['Morning', 'Afternoon', 'Evening'];
 
-  // Determine which items to show: generated list OR the user selection list
-  const displayItems = activeTab === 'generate' ? items : items; 
+  // Check if we have valid coordinates to show the map
+  const hasCoordinates = items.some(i => i.coordinates && i.coordinates.lat);
 
   return (
     <div className="pb-24 pt-8 px-4 min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
@@ -71,6 +75,24 @@ const Itinerary: React.FC<ItineraryProps> = ({
              )}
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Trip Plan</h2>
         </div>
+        
+        {/* View Toggle */}
+        {items.length > 0 && (
+            <div className="flex bg-white dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-800">
+                <button 
+                    onClick={() => setViewMode('list')}
+                    className={`p-2 rounded-md ${viewMode === 'list' ? 'bg-slate-100 dark:bg-slate-800 text-teal-600 dark:text-teal-400' : 'text-slate-400'}`}
+                >
+                    <List size={20} />
+                </button>
+                <button 
+                    onClick={() => setViewMode('map')}
+                    className={`p-2 rounded-md ${viewMode === 'map' ? 'bg-slate-100 dark:bg-slate-800 text-teal-600 dark:text-teal-400' : 'text-slate-400'}`}
+                >
+                    <MapIcon size={20} />
+                </button>
+            </div>
+        )}
       </div>
 
       {/* Mode Toggle */}
@@ -154,8 +176,13 @@ const Itinerary: React.FC<ItineraryProps> = ({
          </div>
       )}
 
-      {/* Timeline */}
-      {(items.length > 0 && (activeTab === 'generate' || tripSelection.length > 0)) && (
+      {/* Map View Visualization */}
+      {viewMode === 'map' && hasCoordinates && (
+          <RouteMapGoogle items={items} />
+      )}
+
+      {/* Timeline List View */}
+      {(items.length > 0 && viewMode === 'list') && (
         <div className="space-y-8 relative pl-2 animate-fade-in">
             {/* Vertical Line */}
             <div className="absolute left-6 top-4 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800 z-0"></div>

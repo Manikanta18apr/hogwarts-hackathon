@@ -110,7 +110,8 @@ export const optimizeRoute = async (places: Place[]): Promise<ItineraryItem[]> =
           mapUrl: item.mapUrl,
           image: originalPlace?.image,
           placeId: originalPlace?.id,
-          rating: originalPlace?.rating
+          rating: originalPlace?.rating,
+          coordinates: originalPlace?.coordinates // Pass coordinates for map
         };
       });
     } catch (e) {

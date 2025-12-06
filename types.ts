@@ -33,6 +33,7 @@ export interface ItineraryItem {
   distance?: string;
   travelTime?: string; // New: Time to travel to this spot
   notes?: string;
+  coordinates?: { lat: number; lng: number }; // New: For plotting the route
 }
 
 export interface EventItem {

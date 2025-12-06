@@ -52,5 +52,9 @@
 </head>
   <body class="bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
     <div id="root"></div>
+    <!-- Google Maps JavaScript API -->
+    <!-- You will need to obtain your Google Maps API Key and replace 'YOUR_GOOGLE_MAPS_API_KEY' -->
+    <!-- Ensure the Maps JavaScript API is enabled in your Google Cloud Project. -->
+    <script async defer src={`https://maps.googleapis.com/maps/api/js?key=${process.env.GOOGLE_MAPS_API_KEY || 'YOUR_GOOGLE_MAPS_API_KEY'}&loading=async`}></script>
   </body>
 </html>
