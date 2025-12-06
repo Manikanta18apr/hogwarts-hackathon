@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Place } from '../types';
-import { ArrowLeft, MapPin, Clock, Wallet, CheckCircle, Share2, Navigation, Heart } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Wallet, CheckCircle, Share2, Navigation, Heart, Star } from 'lucide-react';
 
 interface PlaceDetailsProps {
   place: Place;
@@ -9,6 +9,33 @@ interface PlaceDetailsProps {
   onSave?: (place: Place) => Promise<void>;
   isSaved?: boolean;
 }
+
+const mockReviews = [
+  {
+    id: 'r1',
+    reviewerName: 'Traveler_Alex',
+    rating: 5,
+    date: '2 days ago',
+    comment: 'Absolutely stunning! The atmosphere was incredibly peaceful and the craftsmanship was amazing. A true hidden gem.',
+    avatar: 'https://picsum.photos/50/50?random=1'
+  },
+  {
+    id: 'r2',
+    reviewerName: 'FoodieExplorer',
+    rating: 4,
+    date: '1 week ago',
+    comment: 'The ramen was fantastic, very authentic. Be prepared for a wait, but it’s worth it. Cash only!',
+    avatar: 'https://picsum.photos/50/50?random=2'
+  },
+  {
+    id: 'r3',
+    reviewerName: 'ZenSeeker7',
+    rating: 5,
+    date: '2 weeks ago',
+    comment: 'A profoundly serene experience. The limited entry truly preserves its tranquility. Highly recommend for quiet contemplation.',
+    avatar: 'https://picsum.photos/50/50?random=3'
+  }
+];
 
 const PlaceDetails: React.FC<PlaceDetailsProps> = ({ place, onBack, onAddToItinerary, onSave, isSaved = false }) => {
   const [saving, setSaving] = useState(false);
@@ -95,6 +122,36 @@ const PlaceDetails: React.FC<PlaceDetailsProps> = ({ place, onBack, onAddToItine
                 <p className="font-bold text-slate-800 dark:text-slate-200">2.4 km away</p>
             </div>
         </div>
+
+        {/* User Reviews Section */}
+        <div className="mb-8">
+          <h3 className="font-bold text-slate-900 dark:text-white text-xl mb-4">User Reviews ({place.reviews})</h3>
+          {mockReviews.map(review => (
+            <div key={review.id} className="bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 mb-4 shadow-sm">
+              <div className="flex items-center mb-2">
+                <img src={review.avatar} alt={review.reviewerName} className="w-10 h-10 rounded-full mr-3 object-cover" />
+                <div>
+                  <h4 className="font-semibold text-slate-800 dark:text-white">{review.reviewerName}</h4>
+                  <div className="flex items-center text-sm text-slate-500 dark:text-slate-400">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star 
+                        key={i} 
+                        size={14} 
+                        className={`mr-0.5 ${i < review.rating ? 'text-yellow-500 fill-yellow-500' : 'text-slate-300 dark:text-slate-700'}`} 
+                      />
+                    ))}
+                    <span className="ml-1 text-xs">{review.date}</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">"{review.comment}"</p>
+            </div>
+          ))}
+          <button className="w-full py-3 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 font-semibold rounded-2xl text-sm hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-colors">
+            View All Reviews
+          </button>
+        </div>
+
 
         <div className="flex gap-3 pb-8">
              <button 
